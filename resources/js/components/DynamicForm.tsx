@@ -69,6 +69,19 @@ const DynamicForm: React.FC = () => {
         }
     };
 
+    const handleBlur = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+        const { name, value, required } = e.target;
+        
+        // Simple required validation on blur
+        // Note: For complex validation, we might want to use the field definition
+        if (required && (!value || (Array.isArray(value) && value.length === 0))) {
+            setValidationErrors(prev => ({
+                ...prev,
+                [name]: [`This field is required.`]
+            }));
+        }
+    };
+
     const validateCurrentStep = (): boolean => {
         if (!form) return false;
         
@@ -186,7 +199,7 @@ const DynamicForm: React.FC = () => {
     if (!form) return null;
 
     return (
-        <div className="container mx-auto px-4 py-10 max-w-4xl">
+        <div className="container mx-auto px-4 py-10 max-w-7xl">
             {successMessage && (
                 <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-6 animate-fade-in">
                     <strong className="font-bold">Success!</strong>
@@ -269,6 +282,8 @@ const DynamicForm: React.FC = () => {
                                                     field={field} 
                                                     value={formData[field.name]} 
                                                     onChange={handleInputChange} 
+                                                    onBlur={handleBlur}
+                                                    hasError={!!validationErrors[field.name]}
                                                 />
                                             </div>
 
@@ -343,9 +358,11 @@ interface FieldInputProps {
     field: AdmissionFormField;
     value: any;
     onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => void;
+    onBlur: (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => void;
+    hasError: boolean;
 }
 
-const FieldInput: React.FC<FieldInputProps> = ({ field, value, onChange }) => {
+const FieldInput: React.FC<FieldInputProps> = ({ field, value, onChange, onBlur, hasError }) => {
     // Parse options if string
     let options: string[] = [];
     if (typeof field.options === 'string') {
@@ -358,6 +375,12 @@ const FieldInput: React.FC<FieldInputProps> = ({ field, value, onChange }) => {
         options = field.options;
     }
 
+    const baseInputClass = `w-full rounded-lg shadow-sm sm:text-sm border p-3 transition-all duration-200 ease-in-out ${
+        hasError 
+            ? 'border-red-300 focus:border-red-500 focus:ring-red-500 bg-red-50 text-red-900 placeholder-red-300' 
+            : 'border-gray-300 bg-gray-50 focus:bg-white focus:border-blue-500 focus:ring-blue-500'
+    }`;
+
     switch (field.field_type) {
         case 'textarea':
             return (
@@ -365,11 +388,12 @@ const FieldInput: React.FC<FieldInputProps> = ({ field, value, onChange }) => {
                     name={field.name}
                     id={field.name}
                     rows={4}
-                    className="w-full rounded-lg border-gray-300 bg-gray-50 focus:bg-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-3 transition-all duration-200 ease-in-out"
+                    className={baseInputClass}
                     placeholder={field.placeholder}
                     required={field.is_required}
                     value={value || ''}
                     onChange={onChange}
+                    onBlur={onBlur}
                 />
             );
         
@@ -378,10 +402,11 @@ const FieldInput: React.FC<FieldInputProps> = ({ field, value, onChange }) => {
                 <select
                     name={field.name}
                     id={field.name}
-                    className="w-full rounded-lg border-gray-300 bg-gray-50 focus:bg-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-3 transition-all duration-200 ease-in-out appearance-none"
+                    className={`${baseInputClass} appearance-none`}
                     required={field.is_required}
                     value={value || ''}
                     onChange={onChange}
+                    onBlur={onBlur}
                     style={{ backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`, backgroundPosition: `right 0.5rem center`, backgroundRepeat: `no-repeat`, backgroundSize: `1.5em 1.5em`, paddingRight: `2.5rem` }}
                 >
                     <option value="">Select {field.label}...</option>
@@ -405,6 +430,7 @@ const FieldInput: React.FC<FieldInputProps> = ({ field, value, onChange }) => {
                                 required={field.is_required}
                                 checked={value === opt}
                                 onChange={onChange}
+                                onBlur={onBlur}
                             />
                             <label htmlFor={`${field.name}_${idx}`} className="ml-3 block text-sm font-medium text-gray-700 cursor-pointer group-hover:text-blue-600 transition-colors">
                                 {opt}
@@ -429,6 +455,7 @@ const FieldInput: React.FC<FieldInputProps> = ({ field, value, onChange }) => {
                                     className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer transition-transform transform group-hover:scale-110"
                                     checked={Array.isArray(value) && value.includes(opt)}
                                     onChange={onChange}
+                                    onBlur={onBlur}
                                 />
                                 <label htmlFor={`${field.name}_${idx}`} className="ml-3 block text-sm font-medium text-gray-700 cursor-pointer group-hover:text-blue-600 transition-colors">
                                     {opt}
@@ -447,6 +474,7 @@ const FieldInput: React.FC<FieldInputProps> = ({ field, value, onChange }) => {
                             className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer transition-transform transform group-hover:scale-110"
                             checked={!!value}
                             onChange={onChange}
+                            onBlur={onBlur}
                         />
                         <label htmlFor={field.name} className="ml-3 block text-sm font-medium text-gray-700 cursor-pointer group-hover:text-blue-600 transition-colors">
                             {field.label}
@@ -457,36 +485,37 @@ const FieldInput: React.FC<FieldInputProps> = ({ field, value, onChange }) => {
 
         case 'file':
             return (
-                <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors cursor-pointer group">
+                <div className={`mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed rounded-lg transition-colors cursor-pointer group ${hasError ? 'border-red-300 bg-red-50 hover:bg-red-100' : 'border-gray-300 hover:border-blue-500 hover:bg-blue-50'}`}>
                     <div className="space-y-1 text-center">
-                        <svg className="mx-auto h-12 w-12 text-gray-400 group-hover:text-blue-500 transition-colors" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
+                        <svg className={`mx-auto h-12 w-12 transition-colors ${hasError ? 'text-red-400' : 'text-gray-400 group-hover:text-blue-500'}`} stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
                             <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                         <div className="flex text-sm text-gray-600 justify-center">
-                            <label htmlFor={field.name} className="relative cursor-pointer rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none">
+                            <label htmlFor={field.name} className={`relative cursor-pointer rounded-md font-medium focus-within:outline-none ${hasError ? 'text-red-600 hover:text-red-500' : 'text-blue-600 hover:text-blue-500'}`}>
                                 <span>Upload a file</span>
-                                <input id={field.name} name={field.name} type="file" className="sr-only" onChange={onChange} required={field.is_required} />
+                                <input id={field.name} name={field.name} type="file" className="sr-only" onChange={onChange} onBlur={onBlur} required={field.is_required} />
                             </label>
                             <p className="pl-1">or drag and drop</p>
                         </div>
-                        <p className="text-xs text-gray-500">
+                        <p className={`text-xs ${hasError ? 'text-red-500' : 'text-gray-500'}`}>
                             {value ? `Selected: ${value.name}` : 'PNG, JPG, PDF up to 10MB'}
                         </p>
                     </div>
                 </div>
             );
 
-        default: // text, email, number, date, etc.
+        default: // text, number, date, email, etc.
             return (
                 <input
                     type={field.field_type}
                     name={field.name}
                     id={field.name}
-                    className="w-full rounded-lg border-gray-300 bg-gray-50 focus:bg-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-3 transition-all duration-200 ease-in-out"
+                    className={baseInputClass}
                     placeholder={field.placeholder}
                     required={field.is_required}
                     value={value || ''}
                     onChange={onChange}
+                    onBlur={onBlur}
                 />
             );
     }
