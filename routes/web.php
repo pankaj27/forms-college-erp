@@ -15,3 +15,7 @@ Route::get('/forms/{short_code}', function () {
 // API routes (used by React)
 Route::get('/api/forms/{short_code}', [DynamicFormController::class, 'getFormDetails']);
 Route::post('/api/forms/{short_code}', [DynamicFormController::class, 'submit']);
+
+// Route::get('/dashboard', function () {
+//     return view('dashboard');
+// })->middleware(['auth'])->name('dashboard');
