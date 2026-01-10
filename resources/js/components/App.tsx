@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import DynamicForm from './DynamicForm';
+import NotFound from './NotFound';
 
 const Home = () => (
     <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-4">
@@ -48,6 +49,7 @@ export default function App() {
             <Routes>
                 <Route path="/" element={<Home />} />
                 <Route path="/forms/:shortCode" element={<DynamicForm />} />
+                <Route path="*" element={<NotFound />} />
             </Routes>
         </Router>
     );
