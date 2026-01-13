@@ -13,7 +13,7 @@ class FormSeeder extends Seeder
     public function run()
     {
         // Clean up existing form
-        $existing = AdmissionForm::where('short_code', 'bsc-nursing-2026')->first();
+        $existing = AdmissionForm::where('short_code', 'admission-form-2026')->first();
         if ($existing) {
              // This will also delete related sections/fields if cascade delete is set up, 
              // otherwise we might leave orphans, but for now this is fine or we should delete manually if needed.
@@ -28,9 +28,9 @@ class FormSeeder extends Seeder
             'branch_id' => 1,
             'academic_session_id' => 1,
             'uuid' => Str::uuid(),
-            'title' => 'B.Sc. Nursing Admission 2026',
-            'description' => 'Application form for Bachelor of Science in Nursing. Please fill all details carefully.',
-            'short_code' => 'bsc-nursing-2026',
+            'title' => 'Admission Form 2026',
+            'description' => 'Application form for Admission Session 2026. Please fill all details carefully.',
+            'short_code' => 'admission-form-2026',
             'is_active' => true,
         ]);
 
