@@ -20,8 +20,12 @@ const DynamicForm: React.FC = () => {
             try {
                 const response = await axios.get(`/api/forms/${shortCode}`);
                 setForm(response.data);
-            } catch (err) {
-                setError('Failed to load form. Please try again later.');
+            } catch (err: any) {
+                if (err.response?.status === 401) {
+                    setError('Please sign in to access this application form.');
+                } else {
+                    setError('Failed to load form. Please try again later.');
+                }
                 console.error(err);
             } finally {
                 setLoading(false);
@@ -125,7 +129,6 @@ const DynamicForm: React.FC = () => {
         setError(null);
 
         try {
-            // Use FormData for file uploads support
             const data = new FormData();
             Object.keys(formData).forEach(key => {
                 const value = formData[key];
@@ -149,7 +152,9 @@ const DynamicForm: React.FC = () => {
                 window.scrollTo(0, 0);
             }
         } catch (err: any) {
-            if (err.response && err.response.status === 422) {
+            if (err.response?.status === 401) {
+                setError('Please sign in to submit this application form.');
+            } else if (err.response && err.response.status === 422) {
                 setValidationErrors(err.response.data.errors);
             } else {
                 setError('An error occurred while submitting the form. Please try again.');

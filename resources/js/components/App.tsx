@@ -2,6 +2,19 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import DynamicForm from './DynamicForm';
 import NotFound from './NotFound';
+import SignInPage from './auth/SignInPage';
+import RegistrationPage from './auth/RegistrationPage';
+import OtpVerificationPage from './auth/OtpVerificationPage';
+import ForgotPasswordPage from './auth/ForgotPasswordPage';
+import ForgotUsernamePage from './auth/ForgotUsernamePage';
+import ResendRegistrationEmailPage from './auth/ResendRegistrationEmailPage';
+import ApplicantDashboardPage from './auth/ApplicantDashboardPage';
+import PersonalDetailsFormPage from './applicant/PersonalDetailsFormPage';
+import PersonalDetailsSummaryPage from './applicant/PersonalDetailsSummaryPage';
+import ProgrammeDetailsFormPage from './applicant/ProgrammeDetailsFormPage';
+import ProgrammeDetailsSummaryPage from './applicant/ProgrammeDetailsSummaryPage';
+import QualificationDetailsFormPage from './applicant/QualificationDetailsFormPage';
+import QualificationDetailsSummaryPage from './applicant/QualificationDetailsSummaryPage';
 
 const Home: React.FC = () => {
     const currentYear = new Date().getFullYear();
@@ -59,7 +72,7 @@ const Home: React.FC = () => {
                                     View Prospectus
                                 </button>
                                 <Link
-                                    to="/forms/admission-form-2026"
+                                    to="/auth/login"
                                     className="px-3 py-1 text-xs font-semibold rounded bg-[#ef4444] text-white hover:bg-[#dc2626]"
                                 >
                                     Apply Online
@@ -130,7 +143,7 @@ const Home: React.FC = () => {
                                 </ul>
                                 <div className="mt-3">
                                     <Link
-                                        to="/forms/admission-form-2026"
+                                        to="/auth/login"
                                         className="block w-full text-center bg-[#16a34a] hover:bg-[#15803d] text-white text-xs font-semibold py-2 rounded"
                                     >
                                         Proceed to Application
@@ -269,6 +282,22 @@ export default function App() {
         <Router>
             <Routes>
                 <Route path="/" element={<Home />} />
+                <Route path="/auth/login" element={<SignInPage />} />
+                <Route path="/auth/register" element={<RegistrationPage />} />
+                <Route path="/auth/verify-otp" element={<OtpVerificationPage />} />
+                <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
+                <Route path="/auth/forgot-username" element={<ForgotUsernamePage />} />
+                <Route path="/auth/resend-registration-email" element={<ResendRegistrationEmailPage />} />
+                <Route path="/applicant/dashboard" element={<ApplicantDashboardPage />} />
+                <Route path="/applicant/personal" element={<PersonalDetailsFormPage />} />
+                <Route path="/applicant/personal/summary" element={<PersonalDetailsSummaryPage />} />
+                <Route path="/applicant/programme" element={<ProgrammeDetailsFormPage />} />
+                <Route path="/applicant/programme/summary" element={<ProgrammeDetailsSummaryPage />} />
+                <Route path="/applicant/qualification" element={<QualificationDetailsFormPage />} />
+                <Route
+                    path="/applicant/qualification/summary"
+                    element={<QualificationDetailsSummaryPage />}
+                />
                 <Route path="/forms/:shortCode" element={<DynamicForm />} />
                 <Route path="*" element={<NotFound />} />
             </Routes>

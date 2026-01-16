@@ -9,11 +9,19 @@ use Illuminate\Support\Facades\Validator;
 use App\Mail\ApplicationSubmitted;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Auth;
 
 class DynamicFormController extends Controller
 {
     public function getFormDetails($short_code)
     {
+        if (!Auth::guard('applicant')->check()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Authentication required to access this form.',
+            ], 401);
+        }
+
         $form = AdmissionForm::where('short_code', $short_code)
             ->where('is_active', true)
             ->with(['sections.fields' => function ($query) {
@@ -26,6 +34,13 @@ class DynamicFormController extends Controller
 
     public function submit(Request $request, $short_code)
     {
+        if (!Auth::guard('applicant')->check()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Authentication required to submit this form.',
+            ], 401);
+        }
+
         $form = AdmissionForm::where('short_code', $short_code)
             ->where('is_active', true)
             ->with(['fields', 'sections.fields' => function ($query) {
