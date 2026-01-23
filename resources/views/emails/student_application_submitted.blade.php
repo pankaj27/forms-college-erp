@@ -10,12 +10,30 @@
         
         <p>Thank you for submitting your application for admission. Your application has been successfully received and is now under review.</p>
         
-        <p><strong>Application Reference ID:</strong> {{ $applicant->id }}</p>
-        <p><strong>Submission Date:</strong> {{ $applicant->submitted_at ? \Carbon\Carbon::parse($applicant->submitted_at)->format('d M Y, h:i A') : date('d M Y') }}</p>
+        <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+            <tr>
+                <td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Application Reference ID:</strong></td>
+                <td style="padding: 8px; border-bottom: 1px solid #eee;">{{ $applicant->id }}</td>
+            </tr>
+            <tr>
+                <td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Programme Enrollment:</strong></td>
+                <td style="padding: 8px; border-bottom: 1px solid #eee;">{{ $applicant->programmeDetails->programme_enrollment ?? 'N/A' }}</td>
+            </tr>
+            <tr>
+                <td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Campus:</strong></td>
+                <td style="padding: 8px; border-bottom: 1px solid #eee;">{{ $applicant->programmeDetails->study_center_code ?? 'Main Campus' }}</td>
+            </tr>
+            <tr>
+                <td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Session:</strong></td>
+                <td style="padding: 8px; border-bottom: 1px solid #eee;">{{ date('Y') }}-{{ date('Y') + 1 }}</td>
+            </tr>
+            <tr>
+                <td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Submission Date:</strong></td>
+                <td style="padding: 8px; border-bottom: 1px solid #eee;">{{ $applicant->submitted_at ? \Carbon\Carbon::parse($applicant->submitted_at)->format('d M Y, h:i A') : date('d M Y') }}</td>
+            </tr>
+        </table>
         
         <p>You can track the status of your application by logging into your dashboard.</p>
-        
-        <p>Please find attached a copy of your submitted application form.</p>
         
         <p>Best Regards,<br>
         Admission Cell<br>

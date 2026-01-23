@@ -7,7 +7,6 @@ use App\Models\Applicant;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
-use Barryvdh\DomPDF\Facade\Pdf;
 
 class ApplicantSubmissionController extends Controller
 {
@@ -30,29 +29,12 @@ class ApplicantSubmissionController extends Controller
         $user->rejection_reason = null; // Clear rejection reason on resubmission
         $user->save();
 
-        // 3. Generate PDF
-        $pdfOutput = null;
+        // 2. Send Confirmation Email
         try {
-            // Eager load relationships for the PDF
-            $applicant = Applicant::with(['personalDetails', 'programmeDetails', 'qualificationDetails', 'correspondenceDetails', 'uploads'])->find($user->id);
+            // Eager load relationships for the email details
+            $applicant = Applicant::with(['personalDetails', 'programmeDetails'])->find($user->id);
             
-            // Check if applicant has all required details
-            if (!$applicant->personalDetails) {
-                return response()->json(['success' => false, 'message' => 'Personal details are missing. Please complete your profile.'], 422);
-            }
-
-            $pdf = Pdf::loadView('pdf.student_application', compact('applicant'));
-            $pdfOutput = $pdf->output();
-        } catch (\Exception $e) {
-            \Log::error('Failed to generate PDF for applicant ' . $user->id . ': ' . $e->getMessage());
-            return response()->json(['success' => false, 'message' => 'Failed to generate application PDF. Please try again or contact support.'], 500);
-        }
-
-        // 4. Send Email
-        try {
-            if ($pdfOutput) {
-                Mail::to($user->email)->send(new StudentApplicationSubmitted($applicant, $pdfOutput));
-            }
+            Mail::to($user->email)->send(new StudentApplicationSubmitted($applicant));
         } catch (\Exception $e) {
             // Log email failure but don't fail the request
             \Log::error('Failed to send application submission email to ' . $user->email . ': ' . $e->getMessage());

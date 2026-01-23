@@ -16,15 +16,16 @@ class StudentApplicationSubmitted extends Mailable
     use Queueable, SerializesModels;
 
     public $applicant;
-    protected $pdfOutput;
+    public $session;
 
     /**
      * Create a new message instance.
      */
-    public function __construct(Applicant $applicant, $pdfOutput)
+    public function __construct(Applicant $applicant)
     {
         $this->applicant = $applicant;
-        $this->pdfOutput = $pdfOutput;
+        $year = date('Y');
+        $this->session = $year . '-' . ($year + 1);
     }
 
     /**
@@ -33,7 +34,7 @@ class StudentApplicationSubmitted extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Application Submitted Successfully - Admission ' . date('Y'),
+            subject: 'Application Confirmation - ' . $this->session,
         );
     }
 
@@ -54,9 +55,6 @@ class StudentApplicationSubmitted extends Mailable
      */
     public function attachments(): array
     {
-        return [
-            Attachment::fromData(fn () => $this->pdfOutput, 'Application_Form_' . $this->applicant->id . '.pdf')
-                ->withMime('application/pdf'),
-        ];
+        return [];
     }
 }
