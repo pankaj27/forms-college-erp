@@ -33,17 +33,17 @@ const ProgrammeDetailsFormPage: React.FC = () => {
     const [submitting, setSubmitting] = useState(false);
     const [errors, setErrors] = useState<Record<string, string[]>>({});
     const [branches, setBranches] = useState<BranchOption[]>([]);
+    const [userProgress, setUserProgress] = useState<any>(null);
     const navigate = useNavigate();
 
     const steps = [
-        { key: 'personal', label: 'Personal', number: 1 },
-        { key: 'programme', label: 'Programme', number: 2 },
-        { key: 'qualification', label: 'Qualification', number: 3 },
-        { key: 'course', label: 'Course', number: 4 },
-        { key: 'correspondence', label: 'Correspondence Details', number: 5 },
-        { key: 'upload', label: 'Upload', number: 6 },
-        { key: 'preview', label: 'Preview', number: 7 },
-        { key: 'fee', label: 'Fee', number: 8 },
+        { key: 'personal', label: 'Personal', number: 1, path: '/applicant/personal' },
+        { key: 'programme', label: 'Programme', number: 2, path: '/applicant/programme' },
+        { key: 'qualification', label: 'Qualification', number: 3, path: '/applicant/qualification' },
+        { key: 'correspondence', label: 'Communication Address Details', number: 4, path: '/applicant/correspondence' },
+        { key: 'uploads', label: 'Upload', number: 5, path: '/applicant/uploads' },
+        { key: 'preview', label: 'Preview', number: 6, path: '/applicant/preview' },
+        { key: 'fee', label: 'Fee', number: 7, path: '/applicant/fee' },
     ] as const;
 
     const currentStepKey = 'programme';
@@ -51,10 +51,24 @@ const ProgrammeDetailsFormPage: React.FC = () => {
     useEffect(() => {
         const fetchDetails = async () => {
             try {
-                const response = await axios.get('/api/applicants/programme-details');
+                // Check user status first
+                const userRes = await axios.get('/api/applicants/me');
 
-                if (response.data?.success && response.data.data) {
-                    const data = response.data.data as Partial<ProgrammeDetails>;
+                if (userRes.data?.authenticated && userRes.data.user) {
+                    const user = userRes.data.user;
+                    setUserProgress(user.progress);
+
+                    // Check if application is submitted or approved
+                    if (user.status === 'submitted' || user.status === 'approved') {
+                        navigate('/applicant/programme/summary');
+                        return;
+                    }
+                }
+
+                const detailsRes = await axios.get('/api/applicants/programme-details');
+
+                if (detailsRes.data?.success && detailsRes.data.data) {
+                    const data = detailsRes.data.data as Partial<ProgrammeDetails>;
                     setDetails({
                         ...emptyProgramme,
                         ...data,
@@ -213,15 +227,10 @@ const ProgrammeDetailsFormPage: React.FC = () => {
                         <div className="flex flex-wrap bg-[#5c005c] rounded">
                             {steps.map((step) => {
                                 const isActive = step.key === currentStepKey;
-                                return (
-                                    <button
-                                        key={step.key}
-                                        type="button"
-                                        className={`flex items-center px-3 md:px-4 py-2 border-r border-[#7c1a7c] text-[11px] md:text-xs ${
-                                            isActive ? 'bg-white text-[#16a34a] font-semibold' : 'bg-transparent text-purple-100'
-                                        }`}
-                                        disabled={!isActive}
-                                    >
+                                const isCompleted = step.number < steps.find((s) => s.key === currentStepKey)!.number;
+
+                                const content = (
+                                    <>
                                         <span
                                             className={`w-5 h-5 mr-1 rounded-full flex items-center justify-center text-[10px] ${
                                                 isActive ? 'bg-[#16a34a] text-white' : 'bg-[#ef4444] text-white'
@@ -232,7 +241,25 @@ const ProgrammeDetailsFormPage: React.FC = () => {
                                         <span className="hidden md:inline">
                                             {step.label}
                                         </span>
-                                    </button>
+                                    </>
+                                );
+
+                                const className = `flex items-center px-3 md:px-4 py-2 border-r border-[#7c1a7c] text-[11px] md:text-xs ${
+                                    isActive ? 'bg-white text-[#16a34a] font-semibold' : 'bg-transparent text-purple-100'
+                                } ${isCompleted ? 'cursor-pointer hover:bg-white/10' : ''}`;
+
+                                if (isCompleted) {
+                                    return (
+                                        <Link key={step.key} to={step.path} className={className}>
+                                            {content}
+                                        </Link>
+                                    );
+                                }
+
+                                return (
+                                    <div key={step.key} className={className}>
+                                        {content}
+                                    </div>
                                 );
                             })}
                         </div>

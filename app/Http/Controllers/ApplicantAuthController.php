@@ -237,6 +237,20 @@ class ApplicantAuthController extends Controller
             ]);
         }
 
+        $personalDetails = \App\Models\ApplicantPersonalDetail::where('applicant_id', $user->id)->exists();
+        $programmeDetails = \App\Models\ApplicantProgrammeDetail::where('applicant_id', $user->id)->exists();
+        $qualificationDetails = \App\Models\ApplicantQualificationDetail::where('applicant_id', $user->id)->exists();
+        $correspondenceDetails = \App\Models\ApplicantCorrespondenceDetail::where('applicant_id', $user->id)->exists();
+        
+        // Check for mandatory uploads (Photo and Signature)
+        $uploadedDocuments = \App\Models\ApplicantUpload::where('applicant_id', $user->id)
+            ->pluck('document_type')
+            ->toArray();
+        $uploadsCompleted = in_array('photo', $uploadedDocuments) && in_array('signature', $uploadedDocuments);
+
+        // Preview is considered complete if uploads are done (ready to preview) or already submitted
+        $previewCompleted = $uploadsCompleted || in_array($user->status, ['submitted', 'approved']);
+
         return response()->json([
             'authenticated' => true,
             'user' => [
@@ -244,6 +258,19 @@ class ApplicantAuthController extends Controller
                 'username' => $user->username,
                 'email' => $user->email,
                 'mobile' => $user->mobile,
+                'status' => $user->status,
+                'submitted_at' => $user->submitted_at,
+                'rejection_reason' => $user->rejection_reason,
+                'progress' => [
+                    'personal' => $personalDetails,
+                    'programme' => $programmeDetails,
+                    'qualification' => $qualificationDetails,
+                    'course' => false, // Placeholder
+                    'correspondence' => $correspondenceDetails,
+                    'uploads' => $uploadsCompleted,
+                    'preview' => $previewCompleted,
+                    'fee' => false, // Placeholder
+                ]
             ],
         ]);
     }
@@ -418,6 +445,77 @@ class ApplicantAuthController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Registration confirmation email has been resent to your registered email address.',
+        ]);
+    }
+
+    public function resetPassword(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'username' => 'required|string',
+            'otp' => 'required|string|size:6',
+            'password' => 'required|string|min:6|confirmed',
+            'captcha' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $storedCaptcha = (string) $request->session()->get('captcha_code', '');
+        $inputCaptcha = (string) $request->input('captcha');
+
+        if (mb_strtolower($inputCaptcha) !== mb_strtolower($storedCaptcha)) {
+            return response()->json([
+                'success' => false,
+                'errors' => [
+                    'captcha' => ['Invalid captcha entered.'],
+                ],
+            ], 422);
+        }
+
+        $applicant = Applicant::where('username', $request->input('username'))->first();
+
+        if (!$applicant) {
+            return response()->json([
+                'success' => false,
+                'errors' => [
+                    'username' => ['Invalid username.'],
+                ],
+            ], 422);
+        }
+
+        if ($applicant->otp !== $request->input('otp')) {
+            return response()->json([
+                'success' => false,
+                'errors' => [
+                    'otp' => ['Invalid OTP.'],
+                ],
+            ], 422);
+        }
+
+        if ($applicant->otp_expires_at && now()->gt($applicant->otp_expires_at)) {
+            return response()->json([
+                'success' => false,
+                'errors' => [
+                    'otp' => ['OTP has expired. Please request a new one.'],
+                ],
+            ], 422);
+        }
+
+        $applicant->password = Hash::make($request->input('password'));
+        $applicant->otp = null;
+        $applicant->otp_expires_at = null;
+        $applicant->save();
+
+        $request->session()->forget('captcha_code');
+        $request->session()->regenerate();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Password reset successfully. You can now login with your new password.',
         ]);
     }
 }

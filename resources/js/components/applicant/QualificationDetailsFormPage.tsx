@@ -30,20 +30,21 @@ const QualificationDetailsFormPage: React.FC = () => {
     const currentYear = new Date().getFullYear();
     const [details, setDetails] = useState<QualificationDetails>(emptyQualification);
     const [mainSubjectsSelection, setMainSubjectsSelection] = useState<string[]>([]);
+    const [boards, setBoards] = useState<{ name: string; code: string }[]>([]);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [errors, setErrors] = useState<Record<string, string[]>>({});
+    const [userProgress, setUserProgress] = useState<any>(null);
     const navigate = useNavigate();
 
     const steps = [
-        { key: 'personal', label: 'Personal', number: 1 },
-        { key: 'programme', label: 'Programme', number: 2 },
-        { key: 'qualification', label: 'Qualification', number: 3 },
-        { key: 'course', label: 'Course', number: 4 },
-        { key: 'correspondence', label: 'Correspondence Details', number: 5 },
-        { key: 'upload', label: 'Upload', number: 6 },
-        { key: 'preview', label: 'Preview', number: 7 },
-        { key: 'fee', label: 'Fee', number: 8 },
+        { key: 'personal', label: 'Personal', number: 1, path: '/applicant/personal' },
+        { key: 'programme', label: 'Programme', number: 2, path: '/applicant/programme' },
+        { key: 'qualification', label: 'Qualification', number: 3, path: '/applicant/qualification' },
+        { key: 'correspondence', label: 'Communication Address Details', number: 4, path: '/applicant/correspondence' },
+        { key: 'uploads', label: 'Upload', number: 5, path: '/applicant/uploads' },
+        { key: 'preview', label: 'Preview', number: 6, path: '/applicant/preview' },
+        { key: 'fee', label: 'Fee', number: 7, path: '/applicant/fee' },
     ] as const;
 
     const currentStepKey = 'qualification';
@@ -51,10 +52,23 @@ const QualificationDetailsFormPage: React.FC = () => {
     useEffect(() => {
         const fetchDetails = async () => {
             try {
-                const response = await axios.get('/api/applicants/qualification-details');
+                // Check user status first
+                const meResponse = await axios.get('/api/auth/me');
+                if (meResponse.data?.authenticated && meResponse.data.user) {
+                    const user = meResponse.data.user;
+                    setUserProgress(user.progress);
+                    
+                    // Check if application is submitted or approved
+                    if (user.status === 'submitted' || user.status === 'approved') {
+                        navigate('/applicant/qualification/summary');
+                        return;
+                    }
+                }
 
-                if (response.data?.success && response.data.data) {
-                    const data = response.data.data as Partial<QualificationDetails>;
+                const detailsRes = await axios.get('/api/applicants/qualification-details');
+
+                if (detailsRes.data?.success && detailsRes.data.data) {
+                    const data = detailsRes.data.data as Partial<QualificationDetails>;
                     const merged = {
                         ...emptyQualification,
                         ...data,
@@ -80,6 +94,34 @@ const QualificationDetailsFormPage: React.FC = () => {
 
         fetchDetails();
     }, []);
+
+    useEffect(() => {
+        const fetchBoards = async () => {
+            if (!details.relevant_qualification) {
+                setBoards([]);
+                return;
+            }
+
+            // Only fetch for 10th or if we want to support others later
+            // The requirement specifically mentions "if user selecte relevant qualification from drop down as 10th"
+            // But it says "generated from the database table 'board_masters' with selected course_level value"
+            // So it implies we should try fetching for any selected level if it exists in DB.
+
+            try {
+                const response = await axios.get('/api/applicants/qualification-details/boards', {
+                    params: { course_level: details.relevant_qualification },
+                });
+                if (response.data?.success) {
+                    setBoards(response.data.data);
+                }
+            } catch (err) {
+                console.error('Failed to fetch boards', err);
+                setBoards([]);
+            }
+        };
+
+        fetchBoards();
+    }, [details.relevant_qualification]);
 
     const handleChange =
         (field: keyof QualificationDetails) =>
@@ -204,23 +246,38 @@ const QualificationDetailsFormPage: React.FC = () => {
                         <div className="flex flex-wrap bg-[#5c005c] rounded">
                             {steps.map((step) => {
                                 const isActive = step.key === currentStepKey;
-                                return (
-                                    <div
-                                        key={step.key}
-                                        className={`flex items-center px-3 py-1.5 border-r border-[#6b21a8] last:border-r-0 ${
-                                            isActive ? 'bg-white text-[#4b004b] font-semibold' : ''
-                                        }`}
-                                    >
+                                const isCompleted = userProgress?.[step.key] || step.number < steps.find((s) => s.key === currentStepKey)!.number;
+
+                                const content = (
+                                    <>
                                         <span
-                                            className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-[11px] mr-1 ${
-                                                isActive
-                                                    ? 'bg-[#4b004b] text-white'
-                                                    : 'bg-[#a855f7] text-white'
+                                            className={`w-5 h-5 mr-1 rounded-full flex items-center justify-center text-[10px] ${
+                                                isActive ? 'bg-[#16a34a] text-white' : 'bg-[#16a34a] text-white'
                                             }`}
                                         >
                                             {step.number}
                                         </span>
-                                        <span>{step.label}</span>
+                                        <span className="hidden md:inline">
+                                            {step.label}
+                                        </span>
+                                    </>
+                                );
+
+                                const className = `flex items-center px-3 md:px-4 py-2 border-r border-[#7c1a7c] text-[11px] md:text-xs ${
+                                    isActive ? 'bg-white text-[#16a34a] font-semibold' : 'bg-transparent text-purple-100'
+                                } ${isCompleted ? 'cursor-pointer hover:bg-white/10' : ''}`;
+
+                                if (isCompleted) {
+                                    return (
+                                        <Link key={step.key} to={step.path} className={className}>
+                                            {content}
+                                        </Link>
+                                    );
+                                }
+
+                                return (
+                                    <div key={step.key} className={className}>
+                                        {content}
                                     </div>
                                 );
                             })}
@@ -238,8 +295,8 @@ const QualificationDetailsFormPage: React.FC = () => {
                 </div>
             </header>
 
-            <main className="flex-1">
-                <div className="w-full py-6 space-y-4">
+            <main className="flex-1 w-full max-w-6xl mx-auto px-4 py-6">
+                <div className="w-full space-y-4">
                     {errors.general && (
                         <div className="bg-[#fef2f2] border border-[#fecaca] text-[#b91c1c] rounded px-4 py-2 text-xs">
                             {errors.general[0]}
@@ -264,6 +321,7 @@ const QualificationDetailsFormPage: React.FC = () => {
                                         onChange={handleChange('relevant_qualification')}
                                     >
                                         <option value="">Select</option>
+                                        <option value="10th">10th</option>
                                         <option value="10+2">10+2 or equivalent</option>
                                         <option value="DIPLOMA">Diploma</option>
                                         <option value="BACHELOR">Bachelor Degree</option>
@@ -377,13 +435,28 @@ const QualificationDetailsFormPage: React.FC = () => {
                                 </div>
                                 <div>
                                     <label className="block font-medium mb-1">Board Code *</label>
-                                    <input
-                                        type="text"
-                                        className="w-full border border-gray-300 rounded px-3 py-2"
-                                        placeholder="Enter board code"
-                                        value={details.board_code}
-                                        onChange={handleChange('board_code')}
-                                    />
+                                    {boards.length > 0 ? (
+                                        <select
+                                            className="w-full border border-gray-300 rounded px-3 py-2 bg-white"
+                                            value={details.board_code}
+                                            onChange={handleChange('board_code')}
+                                        >
+                                            <option value="">Select Board</option>
+                                            {boards.map((board) => (
+                                                <option key={board.code} value={board.code}>
+                                                    {board.name} ({board.code})
+                                                </option>
+                                            ))}
+                                        </select>
+                                    ) : (
+                                        <input
+                                            type="text"
+                                            className="w-full border border-gray-300 rounded px-3 py-2"
+                                            placeholder="Enter board code"
+                                            value={details.board_code}
+                                            onChange={handleChange('board_code')}
+                                        />
+                                    )}
                                     {errors.board_code && (
                                         <p className="mt-1 text-xs text-red-600">
                                             {errors.board_code[0]}

@@ -18,17 +18,17 @@ const QualificationDetailsSummaryPage: React.FC = () => {
     const currentYear = new Date().getFullYear();
     const [details, setDetails] = useState<QualificationDetails | null>(null);
     const [loading, setLoading] = useState(true);
+    const [userProgress, setUserProgress] = useState<any>(null);
     const navigate = useNavigate();
 
     const steps = [
-        { key: 'personal', label: 'Personal', number: 1 },
-        { key: 'programme', label: 'Programme', number: 2 },
-        { key: 'qualification', label: 'Qualification', number: 3 },
-        { key: 'course', label: 'Course', number: 4 },
-        { key: 'correspondence', label: 'Correspondence Details', number: 5 },
-        { key: 'upload', label: 'Upload', number: 6 },
-        { key: 'preview', label: 'Preview', number: 7 },
-        { key: 'fee', label: 'Fee', number: 8 },
+        { key: 'personal', label: 'Personal', number: 1, path: '/applicant/personal' },
+        { key: 'programme', label: 'Programme', number: 2, path: '/applicant/programme' },
+        { key: 'qualification', label: 'Qualification', number: 3, path: '/applicant/qualification' },
+        { key: 'correspondence', label: 'Communication Address Details', number: 4, path: '/applicant/correspondence' },
+        { key: 'uploads', label: 'Upload', number: 5, path: '/applicant/uploads' },
+        { key: 'preview', label: 'Preview', number: 6, path: '/applicant/preview' },
+        { key: 'fee', label: 'Fee', number: 7, path: '/applicant/fee' },
     ] as const;
 
     const currentStepKey = 'qualification';
@@ -36,11 +36,20 @@ const QualificationDetailsSummaryPage: React.FC = () => {
     useEffect(() => {
         const fetchDetails = async () => {
             try {
-                const response = await axios.get('/api/applicants/qualification-details');
-                if (response.data?.success && response.data.data) {
-                    setDetails(response.data.data as QualificationDetails);
+                const [detailsRes, userRes] = await Promise.all([
+                    axios.get('/api/applicants/qualification-details'),
+                    axios.get('/api/applicants/me')
+                ]);
+
+                if (detailsRes.data?.success && detailsRes.data.data) {
+                    setDetails(detailsRes.data.data as QualificationDetails);
                 } else {
                     navigate('/applicant/qualification');
+                    return;
+                }
+
+                if (userRes.data?.authenticated && userRes.data.user) {
+                    setUserProgress(userRes.data.user.progress);
                 }
             } catch (err: any) {
                 if (err.response?.status === 401) {
@@ -106,23 +115,38 @@ const QualificationDetailsSummaryPage: React.FC = () => {
                         <div className="flex flex-wrap bg-[#5c005c] rounded">
                             {steps.map((step) => {
                                 const isActive = step.key === currentStepKey;
-                                return (
-                                    <div
-                                        key={step.key}
-                                        className={`flex items-center px-3 py-1.5 border-r border-[#6b21a8] last:border-r-0 ${
-                                            isActive ? 'bg-white text-[#4b004b] font-semibold' : ''
-                                        }`}
-                                    >
+                                const isCompleted = userProgress?.[step.key] || step.number < steps.find((s) => s.key === currentStepKey)!.number;
+
+                                const content = (
+                                    <>
                                         <span
-                                            className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-[11px] mr-1 ${
-                                                isActive
-                                                    ? 'bg-[#4b004b] text-white'
-                                                    : 'bg-[#a855f7] text-white'
+                                            className={`w-5 h-5 mr-1 rounded-full flex items-center justify-center text-[10px] ${
+                                                isActive ? 'bg-[#16a34a] text-white' : 'bg-[#16a34a] text-white'
                                             }`}
                                         >
                                             {step.number}
                                         </span>
-                                        <span>{step.label}</span>
+                                        <span className="hidden md:inline">
+                                            {step.label}
+                                        </span>
+                                    </>
+                                );
+
+                                const className = `flex items-center px-3 md:px-4 py-2 border-r border-[#7c1a7c] text-[11px] md:text-xs ${
+                                    isActive ? 'bg-white text-[#16a34a] font-semibold' : 'bg-transparent text-purple-100'
+                                } ${isCompleted ? 'cursor-pointer hover:bg-white/10' : ''}`;
+
+                                if (isCompleted) {
+                                    return (
+                                        <Link key={step.key} to={step.path} className={className}>
+                                            {content}
+                                        </Link>
+                                    );
+                                }
+
+                                return (
+                                    <div key={step.key} className={className}>
+                                        {content}
                                     </div>
                                 );
                             })}
@@ -243,7 +267,7 @@ const QualificationDetailsSummaryPage: React.FC = () => {
                         </button>
                         <button
                             className="flex-1 px-6 py-2 bg-[#0066b3] hover:bg-[#004f8a] text-white text-sm font-semibold rounded"
-                            onClick={() => navigate('/forms/admission-form-2026')}
+                            onClick={() => navigate('/applicant/correspondence')}
                         >
                             Next
                         </button>

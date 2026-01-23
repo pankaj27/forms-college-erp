@@ -2,25 +2,17 @@ import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
-interface BranchOption {
-    id: number;
-    name: string;
-    code: string;
+interface CorrespondenceDetails {
+    address_line_1: string;
+    address_line_2: string;
+    city: string;
+    pincode: string;
+    post_office: string;
 }
 
-interface ProgrammeDetails {
-    programme_type?: string;
-    mode_of_study?: string;
-    programme_enrollment?: string;
-    region_code?: string;
-    study_center_code?: string;
-    medium?: string;
-}
-
-const ProgrammeDetailsSummaryPage: React.FC = () => {
+const CorrespondenceDetailsSummaryPage: React.FC = () => {
     const currentYear = new Date().getFullYear();
-    const [details, setDetails] = useState<ProgrammeDetails | null>(null);
-    const [branches, setBranches] = useState<BranchOption[]>([]);
+    const [details, setDetails] = useState<CorrespondenceDetails | null>(null);
     const [loading, setLoading] = useState(true);
     const [userProgress, setUserProgress] = useState<any>(null);
     const navigate = useNavigate();
@@ -35,20 +27,20 @@ const ProgrammeDetailsSummaryPage: React.FC = () => {
         { key: 'fee', label: 'Fee', number: 7, path: '/applicant/fee' },
     ] as const;
 
-    const currentStepKey = 'programme';
+    const currentStepKey = 'correspondence';
 
     useEffect(() => {
         const fetchDetails = async () => {
             try {
                 const [detailsRes, userRes] = await Promise.all([
-                    axios.get('/api/applicants/programme-details'),
+                    axios.get('/api/applicants/correspondence-details'),
                     axios.get('/api/applicants/me')
                 ]);
 
                 if (detailsRes.data?.success && detailsRes.data.data) {
-                    setDetails(detailsRes.data.data as ProgrammeDetails);
+                    setDetails(detailsRes.data.data as CorrespondenceDetails);
                 } else {
-                    navigate('/applicant/programme');
+                    navigate('/applicant/correspondence');
                     return;
                 }
 
@@ -60,56 +52,20 @@ const ProgrammeDetailsSummaryPage: React.FC = () => {
                     window.location.href = '/auth/login';
                     return;
                 }
-                navigate('/applicant/programme');
+                navigate('/applicant/correspondence');
+                return;
             } finally {
                 setLoading(false);
             }
         };
 
-        const fetchBranches = async () => {
-            try {
-                const response = await axios.get('/api/applicants/branches');
-
-                if (response.data?.success && Array.isArray(response.data.data)) {
-                    setBranches(response.data.data as BranchOption[]);
-                }
-            } catch (err: any) {
-                if (err.response?.status === 401) {
-                    window.location.href = '/auth/login';
-                }
-            }
-        };
-
         fetchDetails();
-        fetchBranches();
     }, [navigate]);
-
-    const formatProgrammeType = (value?: string) => {
-        if (!value) return '-';
-        if (value === 'DIPLOMA') return 'Diploma';
-        if (value === 'BACHELOR') return 'Bachelor';
-        if (value === 'CERTIFICATE') return 'Certificate';
-        return value;
-    };
-
-    const formatModeOfStudy = (value?: string) => {
-        if (!value) return '-';
-        if (value === 'FULL_TIME') return 'Full Time';
-        if (value === 'PART_TIME') return 'Part Time';
-        if (value === 'DISTANCE') return 'Distance';
-        return value;
-    };
-
-    const getCampusName = () => {
-        if (!details || !details.region_code) return '-';
-        const branch = branches.find((b) => String(b.id) === String(details.region_code));
-        return branch ? branch.name : details.region_code || '-';
-    };
 
     if (loading || !details) {
         return (
             <div className="min-h-screen bg-[#f5f7fb] flex items-center justify-center text-sm text-gray-700">
-                Loading programme summary...
+                Loading summary...
             </div>
         );
     }
@@ -188,64 +144,56 @@ const ProgrammeDetailsSummaryPage: React.FC = () => {
                 </div>
             </header>
 
-            <main className="flex-1">
-                <div className="w-full py-6 space-y-4">
+            <main className="flex-1 w-full max-w-6xl mx-auto px-4 py-6">
+                <div className="w-full space-y-4">
                     <div className="bg-white border border-gray-200 rounded shadow-sm">
                         <div className="px-4 py-3 border-b border-gray-200 bg-[#f9fafb] rounded-t">
                             <h2 className="text-sm font-semibold text-[#111827]">
-                                Programme Details
+                                Communication Address Details Summary
                             </h2>
                         </div>
                         <div className="p-4 text-xs md:text-sm">
                             <div className="overflow-x-auto">
-                                <table className="min-w-full border border-gray-200 text-xs md:text-sm">
+                                <table className="w-full text-left border-collapse border border-gray-200">
                                     <tbody>
                                         <tr className="odd:bg-gray-50">
-                                            <td className="w-1/2 border border-gray-200 px-3 py-1.5 font-semibold">
-                                                Programme Type
+                                            <td className="border border-gray-200 px-3 py-1.5 font-semibold w-1/3">
+                                                Address Line 1
                                             </td>
                                             <td className="border border-gray-200 px-3 py-1.5">
-                                                {formatProgrammeType(details.programme_type)}
+                                                {details.address_line_1 || '-'}
                                             </td>
                                         </tr>
                                         <tr className="odd:bg-gray-50">
                                             <td className="border border-gray-200 px-3 py-1.5 font-semibold">
-                                                Mode Of Study
+                                                Address Line 2
                                             </td>
                                             <td className="border border-gray-200 px-3 py-1.5">
-                                                {formatModeOfStudy(details.mode_of_study)}
+                                                {details.address_line_2 || '-'}
                                             </td>
                                         </tr>
                                         <tr className="odd:bg-gray-50">
                                             <td className="border border-gray-200 px-3 py-1.5 font-semibold">
-                                                Programme For Enrollment
+                                                City
                                             </td>
                                             <td className="border border-gray-200 px-3 py-1.5">
-                                                {details.programme_enrollment || '-'}
+                                                {details.city || '-'}
                                             </td>
                                         </tr>
                                         <tr className="odd:bg-gray-50">
                                             <td className="border border-gray-200 px-3 py-1.5 font-semibold">
-                                                Select Campus
+                                                Pincode
                                             </td>
                                             <td className="border border-gray-200 px-3 py-1.5">
-                                                {getCampusName()}
+                                                {details.pincode || '-'}
                                             </td>
                                         </tr>
                                         <tr className="odd:bg-gray-50">
                                             <td className="border border-gray-200 px-3 py-1.5 font-semibold">
-                                                Branch Code / Institute Code
+                                                Post Office
                                             </td>
                                             <td className="border border-gray-200 px-3 py-1.5">
-                                                {details.study_center_code || '-'}
-                                            </td>
-                                        </tr>
-                                        <tr className="odd:bg-gray-50">
-                                            <td className="border border-gray-200 px-3 py-1.5 font-semibold">
-                                                Medium
-                                            </td>
-                                            <td className="border border-gray-200 px-3 py-1.5">
-                                                {details.medium || '-'}
+                                                {details.post_office || '-'}
                                             </td>
                                         </tr>
                                     </tbody>
@@ -257,19 +205,19 @@ const ProgrammeDetailsSummaryPage: React.FC = () => {
                     <div className="flex justify-between gap-4">
                         <button
                             className="flex-1 px-6 py-2 bg-[#0ea5e9] hover:bg-[#0284c7] text-white text-sm font-semibold rounded"
-                            onClick={() => navigate('/applicant/programme')}
+                            onClick={() => navigate('/applicant/correspondence')}
                         >
                             Previous
                         </button>
                         <button
                             className="flex-1 px-6 py-2 bg-[#22c55e] hover:bg-[#16a34a] text-white text-sm font-semibold rounded"
-                            onClick={() => navigate('/applicant/programme')}
+                            onClick={() => navigate('/applicant/correspondence')}
                         >
                             Edit
                         </button>
                         <button
                             className="flex-1 px-6 py-2 bg-[#0066b3] hover:bg-[#004f8a] text-white text-sm font-semibold rounded"
-                            onClick={() => navigate('/applicant/qualification')}
+                            onClick={() => navigate('/applicant/uploads')}
                         >
                             Next
                         </button>
@@ -277,7 +225,7 @@ const ProgrammeDetailsSummaryPage: React.FC = () => {
                 </div>
             </main>
 
-            <footer className="bg-[#1f2937] text-gray-300 text-xs mt-4">
+            <footer className="bg-[#1f2937] text-gray-300 text-xs mt-auto">
                 <div className="max-w-6xl mx-auto px-4 py-3 flex flex-col md:flex-row md:items-center md:justify-between space-y-2 md:space-y-0">
                     <div>
                         <span className="font-semibold">Nursing College ERP</span> &nbsp;|&nbsp; Online Admission Portal
@@ -291,5 +239,4 @@ const ProgrammeDetailsSummaryPage: React.FC = () => {
     );
 };
 
-export default ProgrammeDetailsSummaryPage;
-
+export default CorrespondenceDetailsSummaryPage;

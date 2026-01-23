@@ -32,4 +32,29 @@ class Applicant extends Authenticatable
         'email_verified_at' => 'datetime',
         'otp_expires_at' => 'datetime',
     ];
+
+    public function personalDetails()
+    {
+        return $this->hasOne(ApplicantPersonalDetail::class);
+    }
+
+    public function programmeDetails()
+    {
+        return $this->hasOne(ApplicantProgrammeDetail::class);
+    }
+
+    public function qualificationDetails()
+    {
+        return $this->hasOne(ApplicantQualificationDetail::class);
+    }
+
+    public function correspondenceDetails()
+    {
+        return $this->hasOne(ApplicantCorrespondenceDetail::class);
+    }
+
+    public function uploads()
+    {
+        return $this->hasMany(ApplicantUpload::class);
+    }
 }

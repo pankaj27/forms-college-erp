@@ -1,5 +1,6 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Link, useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import DynamicForm from './DynamicForm';
 import NotFound from './NotFound';
 import SignInPage from './auth/SignInPage';
@@ -15,9 +16,30 @@ import ProgrammeDetailsFormPage from './applicant/ProgrammeDetailsFormPage';
 import ProgrammeDetailsSummaryPage from './applicant/ProgrammeDetailsSummaryPage';
 import QualificationDetailsFormPage from './applicant/QualificationDetailsFormPage';
 import QualificationDetailsSummaryPage from './applicant/QualificationDetailsSummaryPage';
+import CorrespondenceDetailsFormPage from './applicant/CorrespondenceDetailsFormPage';
+import CorrespondenceDetailsSummaryPage from './applicant/CorrespondenceDetailsSummaryPage';
+import UploadsPage from './applicant/UploadsPage';
+import UploadsSummaryPage from './applicant/UploadsSummaryPage';
+import PreviewPage from './applicant/PreviewPage';
+import FeePage from './applicant/FeePage';
 
 const Home: React.FC = () => {
     const currentYear = new Date().getFullYear();
+    const navigate = useNavigate();
+
+    useEffect(() => {
+        const checkAuth = async () => {
+            try {
+                const response = await axios.get('/api/applicants/me');
+                if (response.data?.authenticated) {
+                    navigate('/applicant/dashboard');
+                }
+            } catch (error) {
+                // User is not authenticated, stay on home page
+            }
+        };
+        checkAuth();
+    }, [navigate]);
 
     return (
         <div className="min-h-screen bg-[#f5f7fb] flex flex-col">
@@ -298,6 +320,12 @@ export default function App() {
                     path="/applicant/qualification/summary"
                     element={<QualificationDetailsSummaryPage />}
                 />
+                <Route path="/applicant/correspondence" element={<CorrespondenceDetailsFormPage />} />
+                <Route path="/applicant/correspondence/summary" element={<CorrespondenceDetailsSummaryPage />} />
+                <Route path="/applicant/uploads" element={<UploadsPage />} />
+                <Route path="/applicant/uploads/summary" element={<UploadsSummaryPage />} />
+                <Route path="/applicant/preview" element={<PreviewPage />} />
+                <Route path="/applicant/fee" element={<FeePage />} />
                 <Route path="/forms/:shortCode" element={<DynamicForm />} />
                 <Route path="*" element={<NotFound />} />
             </Routes>

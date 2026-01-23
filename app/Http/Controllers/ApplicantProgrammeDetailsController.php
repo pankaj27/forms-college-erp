@@ -42,6 +42,14 @@ class ApplicantProgrammeDetailsController extends Controller
             ], 401);
         }
 
+        // Prevent editing if submitted
+        if (in_array($user->status, ['submitted', 'approved'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Application is already submitted and cannot be edited.',
+            ], 403);
+        }
+
         $validator = Validator::make($request->all(), [
             'programme_type' => 'required|string|max:100',
             'mode_of_study' => 'required|string|max:100',

@@ -2,25 +2,21 @@ import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
-interface BranchOption {
+interface UploadedFile {
     id: number;
-    name: string;
-    code: string;
+    original_name: string;
+    file_size: number;
+    uploaded_at: string;
+    url: string;
 }
 
-interface ProgrammeDetails {
-    programme_type?: string;
-    mode_of_study?: string;
-    programme_enrollment?: string;
-    region_code?: string;
-    study_center_code?: string;
-    medium?: string;
+interface UploadsMap {
+    [key: string]: UploadedFile;
 }
 
-const ProgrammeDetailsSummaryPage: React.FC = () => {
+const UploadsSummaryPage: React.FC = () => {
     const currentYear = new Date().getFullYear();
-    const [details, setDetails] = useState<ProgrammeDetails | null>(null);
-    const [branches, setBranches] = useState<BranchOption[]>([]);
+    const [uploads, setUploads] = useState<UploadsMap>({});
     const [loading, setLoading] = useState(true);
     const [userProgress, setUserProgress] = useState<any>(null);
     const navigate = useNavigate();
@@ -35,21 +31,31 @@ const ProgrammeDetailsSummaryPage: React.FC = () => {
         { key: 'fee', label: 'Fee', number: 7, path: '/applicant/fee' },
     ] as const;
 
-    const currentStepKey = 'programme';
+    const currentStepKey = 'uploads';
+
+    const documentTypes = [
+        { key: 'photo', label: 'PHOTO' },
+        { key: 'signature', label: 'SIGNATURE' },
+        { key: 'matriculation', label: 'MATRICULATION MARKSHEET OR CERTIFICATE' },
+        { key: '10plus2', label: '10+2 MARKSHEET / CERTIFICATE' },
+        { key: 'graduation_marksheet', label: 'MARKSHEET OF GRADUATION' },
+        { key: 'graduation_degree', label: 'DEGREE OR PROVISIONAL CERTIFICATE OF GRADUATION' },
+        ...Array.from({ length: 8 }, (_, i) => ({
+            key: `others${i + 1}`,
+            label: `OTHERS${i + 1}`
+        }))
+    ];
 
     useEffect(() => {
         const fetchDetails = async () => {
             try {
-                const [detailsRes, userRes] = await Promise.all([
-                    axios.get('/api/applicants/programme-details'),
+                const [uploadsRes, userRes] = await Promise.all([
+                    axios.get('/api/applicants/uploads'),
                     axios.get('/api/applicants/me')
                 ]);
 
-                if (detailsRes.data?.success && detailsRes.data.data) {
-                    setDetails(detailsRes.data.data as ProgrammeDetails);
-                } else {
-                    navigate('/applicant/programme');
-                    return;
+                if (uploadsRes.data?.success) {
+                    setUploads(uploadsRes.data.data);
                 }
 
                 if (userRes.data?.authenticated && userRes.data.user) {
@@ -60,59 +66,34 @@ const ProgrammeDetailsSummaryPage: React.FC = () => {
                     window.location.href = '/auth/login';
                     return;
                 }
-                navigate('/applicant/programme');
+                // If error fetching uploads, maybe just show empty or redirect? 
+                // We'll stay here but list will be empty or partial.
             } finally {
                 setLoading(false);
             }
         };
 
-        const fetchBranches = async () => {
-            try {
-                const response = await axios.get('/api/applicants/branches');
-
-                if (response.data?.success && Array.isArray(response.data.data)) {
-                    setBranches(response.data.data as BranchOption[]);
-                }
-            } catch (err: any) {
-                if (err.response?.status === 401) {
-                    window.location.href = '/auth/login';
-                }
-            }
-        };
-
         fetchDetails();
-        fetchBranches();
     }, [navigate]);
 
-    const formatProgrammeType = (value?: string) => {
-        if (!value) return '-';
-        if (value === 'DIPLOMA') return 'Diploma';
-        if (value === 'BACHELOR') return 'Bachelor';
-        if (value === 'CERTIFICATE') return 'Certificate';
-        return value;
-    };
-
-    const formatModeOfStudy = (value?: string) => {
-        if (!value) return '-';
-        if (value === 'FULL_TIME') return 'Full Time';
-        if (value === 'PART_TIME') return 'Part Time';
-        if (value === 'DISTANCE') return 'Distance';
-        return value;
-    };
-
-    const getCampusName = () => {
-        if (!details || !details.region_code) return '-';
-        const branch = branches.find((b) => String(b.id) === String(details.region_code));
-        return branch ? branch.name : details.region_code || '-';
-    };
-
-    if (loading || !details) {
+    if (loading) {
         return (
             <div className="min-h-screen bg-[#f5f7fb] flex items-center justify-center text-sm text-gray-700">
-                Loading programme summary...
+                Loading summary...
             </div>
         );
     }
+
+    // Filter document types to only show those that have been uploaded, or show all with status?
+    // Usually summary shows what has been provided. 
+    // If we want to show all required ones as "Pending", we can. 
+    // But since the user has already passed the upload step, we assume they uploaded what they needed.
+    // However, for a summary, it's good to show what is there.
+    // Let's show all types but indicate if not uploaded (though user shouldn't be here if mandatory ones are missing, 
+    // but we don't strictly enforce that logic here). 
+    // Let's just show the ones that exist in `uploads` map or iterate all `documentTypes` and show status.
+    
+    // For a cleaner summary, let's show all defined types so the user knows what they missed or uploaded.
 
     return (
         <div className="min-h-screen bg-[#f5f7fb] flex flex-col">
@@ -188,66 +169,57 @@ const ProgrammeDetailsSummaryPage: React.FC = () => {
                 </div>
             </header>
 
-            <main className="flex-1">
-                <div className="w-full py-6 space-y-4">
+            <main className="flex-1 w-full max-w-6xl mx-auto px-4 py-6">
+                <div className="w-full space-y-4">
                     <div className="bg-white border border-gray-200 rounded shadow-sm">
                         <div className="px-4 py-3 border-b border-gray-200 bg-[#f9fafb] rounded-t">
                             <h2 className="text-sm font-semibold text-[#111827]">
-                                Programme Details
+                                Uploaded Documents Summary
                             </h2>
                         </div>
                         <div className="p-4 text-xs md:text-sm">
                             <div className="overflow-x-auto">
-                                <table className="min-w-full border border-gray-200 text-xs md:text-sm">
+                                <table className="w-full text-left border-collapse border border-gray-200">
+                                    <thead>
+                                        <tr className="bg-gray-50">
+                                            <th className="border border-gray-200 px-3 py-2 font-semibold">Document Type</th>
+                                            <th className="border border-gray-200 px-3 py-2 font-semibold">File Name</th>
+                                            <th className="border border-gray-200 px-3 py-2 font-semibold w-24 text-center">Action</th>
+                                        </tr>
+                                    </thead>
                                     <tbody>
-                                        <tr className="odd:bg-gray-50">
-                                            <td className="w-1/2 border border-gray-200 px-3 py-1.5 font-semibold">
-                                                Programme Type
-                                            </td>
-                                            <td className="border border-gray-200 px-3 py-1.5">
-                                                {formatProgrammeType(details.programme_type)}
-                                            </td>
-                                        </tr>
-                                        <tr className="odd:bg-gray-50">
-                                            <td className="border border-gray-200 px-3 py-1.5 font-semibold">
-                                                Mode Of Study
-                                            </td>
-                                            <td className="border border-gray-200 px-3 py-1.5">
-                                                {formatModeOfStudy(details.mode_of_study)}
-                                            </td>
-                                        </tr>
-                                        <tr className="odd:bg-gray-50">
-                                            <td className="border border-gray-200 px-3 py-1.5 font-semibold">
-                                                Programme For Enrollment
-                                            </td>
-                                            <td className="border border-gray-200 px-3 py-1.5">
-                                                {details.programme_enrollment || '-'}
-                                            </td>
-                                        </tr>
-                                        <tr className="odd:bg-gray-50">
-                                            <td className="border border-gray-200 px-3 py-1.5 font-semibold">
-                                                Select Campus
-                                            </td>
-                                            <td className="border border-gray-200 px-3 py-1.5">
-                                                {getCampusName()}
-                                            </td>
-                                        </tr>
-                                        <tr className="odd:bg-gray-50">
-                                            <td className="border border-gray-200 px-3 py-1.5 font-semibold">
-                                                Branch Code / Institute Code
-                                            </td>
-                                            <td className="border border-gray-200 px-3 py-1.5">
-                                                {details.study_center_code || '-'}
-                                            </td>
-                                        </tr>
-                                        <tr className="odd:bg-gray-50">
-                                            <td className="border border-gray-200 px-3 py-1.5 font-semibold">
-                                                Medium
-                                            </td>
-                                            <td className="border border-gray-200 px-3 py-1.5">
-                                                {details.medium || '-'}
-                                            </td>
-                                        </tr>
+                                        {documentTypes.map((doc) => {
+                                            const file = uploads[doc.key];
+                                            if (!file) return null; // Only show uploaded files? Or show all? User likely wants to see what they uploaded.
+                                            
+                                            return (
+                                                <tr key={doc.key} className="odd:bg-gray-50">
+                                                    <td className="border border-gray-200 px-3 py-2">
+                                                        {doc.label}
+                                                    </td>
+                                                    <td className="border border-gray-200 px-3 py-2 text-gray-600">
+                                                        {file.original_name}
+                                                    </td>
+                                                    <td className="border border-gray-200 px-3 py-2 text-center">
+                                                        <a 
+                                                            href={file.url} 
+                                                            target="_blank" 
+                                                            rel="noreferrer"
+                                                            className="text-blue-600 hover:underline font-medium"
+                                                        >
+                                                            View
+                                                        </a>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                        {Object.keys(uploads).length === 0 && (
+                                            <tr>
+                                                <td colSpan={3} className="border border-gray-200 px-3 py-4 text-center text-gray-500">
+                                                    No documents uploaded yet.
+                                                </td>
+                                            </tr>
+                                        )}
                                     </tbody>
                                 </table>
                             </div>
@@ -257,39 +229,27 @@ const ProgrammeDetailsSummaryPage: React.FC = () => {
                     <div className="flex justify-between gap-4">
                         <button
                             className="flex-1 px-6 py-2 bg-[#0ea5e9] hover:bg-[#0284c7] text-white text-sm font-semibold rounded"
-                            onClick={() => navigate('/applicant/programme')}
+                            onClick={() => navigate('/applicant/uploads')}
                         >
                             Previous
                         </button>
                         <button
                             className="flex-1 px-6 py-2 bg-[#22c55e] hover:bg-[#16a34a] text-white text-sm font-semibold rounded"
-                            onClick={() => navigate('/applicant/programme')}
+                            onClick={() => navigate('/applicant/uploads')}
                         >
                             Edit
                         </button>
                         <button
                             className="flex-1 px-6 py-2 bg-[#0066b3] hover:bg-[#004f8a] text-white text-sm font-semibold rounded"
-                            onClick={() => navigate('/applicant/qualification')}
+                            onClick={() => navigate('/applicant/preview')}
                         >
                             Next
                         </button>
                     </div>
                 </div>
             </main>
-
-            <footer className="bg-[#1f2937] text-gray-300 text-xs mt-4">
-                <div className="max-w-6xl mx-auto px-4 py-3 flex flex-col md:flex-row md:items-center md:justify-between space-y-2 md:space-y-0">
-                    <div>
-                        <span className="font-semibold">Nursing College ERP</span> &nbsp;|&nbsp; Online Admission Portal
-                    </div>
-                    <div className="text-gray-400">
-                        © {currentYear} Nursing College. All Rights Reserved.
-                    </div>
-                </div>
-            </footer>
         </div>
     );
 };
 
-export default ProgrammeDetailsSummaryPage;
-
+export default UploadsSummaryPage;
