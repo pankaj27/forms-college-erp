@@ -103,6 +103,7 @@ Route::get('/forms/{short_code}', function () {
 Route::middleware('auth:applicant')->group(function () {
     Route::get('/api/forms/{short_code}', [DynamicFormController::class, 'getFormDetails']);
     Route::post('/api/forms/{short_code}', [DynamicFormController::class, 'submit']);
+    Route::get('/api/fees/{groupName}', [DynamicFormController::class, 'getFeesDetails']);
 });
 
 Route::prefix('api/applicants')->group(function () {

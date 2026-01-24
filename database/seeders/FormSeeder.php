@@ -191,5 +191,26 @@ class FormSeeder extends Seeder
             'grid_width' => 12,
             'order' => 5,
         ]);
+
+        // Section 4: Fees Payment
+        $feesSection = AdmissionFormSection::create([
+            'admission_form_id' => $form->id,
+            'title' => 'Fees Payment',
+            'description' => 'Review and pay your admission fees.',
+            'order' => 4,
+        ]);
+
+        // We add a field here, but the frontend will likely replace this section's content
+        // with the actual fee breakdown fetched from the server.
+        AdmissionFormField::create([
+            'section_id' => $feesSection->id,
+            'admission_form_id' => $form->id,
+            'label' => 'Total Amount Payable',
+            'name' => 'total_fee_display',
+            'field_type' => 'text', // Frontend should handle this or we just use it as a placeholder
+            'is_required' => false,
+            'grid_width' => 12,
+            'order' => 1,
+        ]);
     }
 }

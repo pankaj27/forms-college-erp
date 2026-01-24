@@ -123,4 +123,35 @@ class DynamicFormController extends Controller
             'message' => 'Form submitted successfully! Check your email for confirmation.'
         ]);
     }
+
+    public function getFeesDetails($groupName)
+    {
+        $group = \App\Models\FeesGroup::where('name', $groupName)
+            ->with(['feesGroupMasters.feesMaster.feesHead'])
+            ->first();
+
+        if (!$group) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Fees group not found.',
+            ], 404);
+        }
+
+        // Transform data for easier consumption
+        $details = $group->feesGroupMasters->map(function ($fgm) {
+            return [
+                'head_name' => $fgm->feesMaster->feesHead->name,
+                'amount' => $fgm->feesMaster->amount,
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'group_name' => $group->name,
+            'description' => $group->description,
+            'total_amount' => $group->total_amount,
+            'details' => $details,
+            'due_date' => $group->due_date,
+        ]);
+    }
 }

@@ -14,6 +14,25 @@ const DynamicForm: React.FC = () => {
     const [submitting, setSubmitting] = useState<boolean>(false);
 
     const [currentStep, setCurrentStep] = useState<number>(0);
+    const [feeDetails, setFeeDetails] = useState<any>(null);
+    const [feeLoading, setFeeLoading] = useState<boolean>(false);
+
+    useEffect(() => {
+        if (form && form.sections[currentStep] && form.sections[currentStep].title === 'Fees Payment') {
+            const fetchFees = async () => {
+                setFeeLoading(true);
+                try {
+                    const response = await axios.get(`/api/fees/${encodeURIComponent('On Admission')}`);
+                    setFeeDetails(response.data);
+                } catch (err) {
+                    console.error('Failed to fetch fees', err);
+                } finally {
+                    setFeeLoading(false);
+                }
+            };
+            fetchFees();
+        }
+    }, [currentStep, form]);
 
     useEffect(() => {
         const fetchForm = async () => {
@@ -272,7 +291,53 @@ const DynamicForm: React.FC = () => {
                             )}
 
                             <div className="grid grid-cols-1 md:grid-cols-12 gap-6 mt-6">
-                                {form.sections[currentStep].fields.map((field: AdmissionFormField) => {
+                                {form.sections[currentStep].title === 'Fees Payment' ? (
+                                    <div className="md:col-span-12">
+                                        {feeLoading ? (
+                                            <div className="flex justify-center p-8">
+                                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                                            </div>
+                                        ) : feeDetails ? (
+                                            <div className="bg-slate-50 rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+                                                <div className="p-4 bg-slate-100 border-b border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+                                                    <div>
+                                                        <h3 className="font-semibold text-slate-800 text-lg">{feeDetails.group_name}</h3>
+                                                        <p className="text-xs text-slate-500">{feeDetails.description}</p>
+                                                    </div>
+                                                    <span className="text-xs font-medium px-2.5 py-0.5 rounded bg-blue-100 text-blue-800">Due Date: {new Date(feeDetails.due_date).toLocaleDateString()}</span>
+                                                </div>
+                                                <div className="overflow-x-auto">
+                                                    <table className="w-full text-sm text-left">
+                                                        <thead className="text-xs text-slate-500 uppercase bg-slate-50 border-b">
+                                                            <tr>
+                                                                <th className="px-6 py-3">Fee Head</th>
+                                                                <th className="px-6 py-3 text-right">Amount (₹)</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {feeDetails.details.map((item: any, idx: number) => (
+                                                                <tr key={idx} className="bg-white border-b hover:bg-slate-50 transition-colors">
+                                                                    <td className="px-6 py-4 font-medium text-slate-900">{item.head_name}</td>
+                                                                    <td className="px-6 py-4 text-right font-mono text-slate-600">{parseFloat(item.amount).toFixed(2)}</td>
+                                                                </tr>
+                                                            ))}
+                                                            <tr className="bg-blue-50/50 font-bold border-t-2 border-slate-200">
+                                                                <td className="px-6 py-4 text-slate-900">Total Payable</td>
+                                                                <td className="px-6 py-4 text-right text-blue-700 text-lg">₹{parseFloat(feeDetails.total_amount).toFixed(2)}</td>
+                                                            </tr>
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="text-center p-8 bg-red-50 rounded-lg border border-red-100">
+                                                <p className="text-red-500 font-medium">Unable to load fee details.</p>
+                                                <button onClick={() => window.location.reload()} className="mt-2 text-sm text-blue-600 hover:underline">Retry</button>
+                                            </div>
+                                        )}
+                                    </div>
+                                ) : (
+                                    form.sections[currentStep].fields.map((field: AdmissionFormField) => {
                                     const colSpan = getColSpanClass(field.grid_width);
                                     
                                     return (
@@ -300,7 +365,8 @@ const DynamicForm: React.FC = () => {
                                             )}
                                         </div>
                                     );
-                                })}
+                                })
+                                )}
                             </div>
                         </div>
 
