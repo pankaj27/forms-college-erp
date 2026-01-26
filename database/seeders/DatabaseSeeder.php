@@ -25,6 +25,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             FeeStructureSeeder::class,
             FormSeeder::class,
+            FinalRegistrationSeeder::class,
         ]);
     }
 }
