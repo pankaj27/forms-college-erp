@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AdmissionPayment;
 use App\Models\Applicant;
 use App\Models\FinalRegistration;
 use App\Models\PaymentGatewaySetting;
@@ -81,6 +82,22 @@ class ApplicantPaymentController extends Controller
             'application_snapshot' => $applicant->toArray(),
         ]);
 
+        // Create Admission Payment Record
+        AdmissionPayment::create([
+            'institute_id' => $instituteId,
+            'branch_id' => $branchId,
+            'applicant_id' => $user->id,
+            'payment_group' => 'Online Admission',
+            'pay_receiving_amount' => $request->amount,
+            'transaction_date' => $request->transaction_date,
+            'transaction_id' => $request->transaction_id,
+            'bank_name' => $request->bank_name,
+            'bank_branch_name' => null, // Assuming this is not captured in form currently, or we can use bank_name as well if needed, but keeping it null if not explicit
+            'payment_mode' => 'Bank Transfer',
+            'payment_proof' => $path,
+            'status' => 'pending',
+        ]);
+
         // Update User Status
         $user->status = 'Registered';
         $user->save();
@@ -144,6 +161,22 @@ class ApplicantPaymentController extends Controller
             'amount' => $request->amount,
             'transaction_id' => $request->transaction_id,
             'application_snapshot' => $applicant->toArray(),
+        ]);
+
+        // Create Admission Payment Record
+        AdmissionPayment::create([
+            'institute_id' => $instituteId,
+            'branch_id' => $branchId,
+            'applicant_id' => $user->id,
+            'payment_group' => 'Online Admission',
+            'pay_receiving_amount' => $request->amount,
+            'transaction_date' => now(), // Gateway payments are immediate
+            'transaction_id' => $request->transaction_id,
+            'bank_name' => null, // Online payment usually doesn't capture this unless specific
+            'bank_branch_name' => null,
+            'payment_mode' => 'Online', // Generalizing for gateway
+            'payment_proof' => null,
+            'status' => 'verified', // Gateway payments are verified immediately upon success
         ]);
 
         // Update User Status

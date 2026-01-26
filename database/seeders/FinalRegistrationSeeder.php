@@ -64,7 +64,7 @@ class FinalRegistrationSeeder extends Seeder
         $branchId = $branch->id;
 
         // Create Final Registration record
-        FinalRegistration::firstOrCreate(
+        $finalRegistration = FinalRegistration::firstOrCreate(
             ['applicant_id' => $applicant->id],
             [
                 'institute_id' => $instituteId,
@@ -77,6 +77,24 @@ class FinalRegistrationSeeder extends Seeder
                 'transaction_date' => now(),
                 'proof_document' => 'payment_proofs/sample.jpg',
                 'application_snapshot' => $applicant->toArray(),
+            ]
+        );
+
+        // Create Admission Payment record
+        \App\Models\AdmissionPayment::firstOrCreate(
+            ['applicant_id' => $applicant->id],
+            [
+                'institute_id' => $instituteId,
+                'branch_id' => $branchId,
+                'payment_group' => 'Online Admission',
+                'pay_receiving_amount' => 5000.00,
+                'transaction_date' => now(),
+                'transaction_id' => 'SEED_' . time(),
+                'bank_name' => 'HDFC Bank',
+                'bank_branch_name' => 'Koramangala',
+                'payment_mode' => 'Bank Transfer',
+                'payment_proof' => 'payment_proofs/sample.jpg',
+                'status' => 'verified',
             ]
         );
 

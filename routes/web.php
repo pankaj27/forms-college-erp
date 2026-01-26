@@ -97,6 +97,14 @@ Route::get('/applicant/fee', function () {
     return view('welcome');
 });
 
+Route::get('/applicant/transactions', function () {
+    return view('welcome');
+});
+
+Route::get('/applicant/discrepancies', function () {
+    return view('welcome');
+});
+
 Route::get('/forms/{short_code}', function () {
     return view('welcome');
 })->name('forms.show');

@@ -23,6 +23,7 @@ class DatabaseSeeder extends Seeder
         ]);
 
         $this->call([
+            InstituteSeeder::class,
             FeeStructureSeeder::class,
             FormSeeder::class,
             FinalRegistrationSeeder::class,
