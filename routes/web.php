@@ -12,6 +12,7 @@ use App\Http\Controllers\ApplicantCorrespondenceDetailsController;
 use App\Http\Controllers\PostOfficeController;
 use App\Http\Controllers\ApplicantUploadsController;
 use App\Http\Controllers\ApplicantSubmissionController;
+use App\Http\Controllers\ApplicantPaymentController;
 
 Route::get('/', function () {
     if (Auth::guard('applicant')->check()) {
@@ -132,6 +133,13 @@ Route::prefix('api/applicants')->group(function () {
         Route::delete('/uploads/{document_type}', [ApplicantUploadsController::class, 'destroy']);
         Route::get('/branches', [ApplicantProgrammeDetailsController::class, 'branches']);
         Route::post('/submit', [ApplicantSubmissionController::class, 'submit']);
+        
+        // Payment Routes
+        Route::post('/payment/bank-transfer', [ApplicantPaymentController::class, 'submitBankTransfer']);
+        Route::post('/payment/gateway-success', [ApplicantPaymentController::class, 'processGatewayPayment']);
+        Route::post('/payment/create-order', [ApplicantPaymentController::class, 'createCashfreeOrder']);
+        Route::post('/payment/verify', [ApplicantPaymentController::class, 'verifyCashfreeOrder']);
+        Route::get('/payment/gateways', [ApplicantPaymentController::class, 'getActiveGateways']);
     });
 });
 

@@ -31,6 +31,7 @@ class Applicant extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
         'otp_expires_at' => 'datetime',
+        'progress' => 'array',
     ];
 
     public function personalDetails()

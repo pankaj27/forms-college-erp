@@ -118,6 +118,8 @@ class ApplicantUploadsController extends Controller
             ]
         );
 
+        $this->updateProgress($user);
+
         return response()->json([
             'success' => true,
             'message' => 'File uploaded successfully.',
@@ -163,9 +165,27 @@ class ApplicantUploadsController extends Controller
         Storage::disk('public')->delete($upload->file_path);
         $upload->delete();
 
+        $this->updateProgress($user);
+
         return response()->json([
             'success' => true,
             'message' => 'File deleted successfully.',
         ]);
+    }
+
+    private function updateProgress($user)
+    {
+        $required = ['photo', 'signature'];
+        $uploaded = ApplicantUpload::where('applicant_id', $user->id)
+            ->whereIn('document_type', $required)
+            ->pluck('document_type')
+            ->toArray();
+            
+        $hasAll = count(array_intersect($required, $uploaded)) === count($required);
+        
+        $progress = $user->progress ?? [];
+        $progress['uploads'] = $hasAll;
+        $user->progress = $progress;
+        $user->save();
     }
 }

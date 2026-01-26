@@ -35,4 +35,18 @@ return [
         ],
     ],
 
+    'cashfree' => [
+        'test_mode' => env('CASHFREE_TEST_MODE', true),
+        'test' => [
+            'app_id' => env('CASHFREE_TEST_APP_ID'),
+            'secret_key' => env('CASHFREE_TEST_SECRET_KEY'),
+            'url' => 'https://sandbox.cashfree.com/pg',
+        ],
+        'live' => [
+            'app_id' => env('CASHFREE_LIVE_APP_ID'),
+            'secret_key' => env('CASHFREE_LIVE_SECRET_KEY'),
+            'url' => 'https://api.cashfree.com/pg',
+        ],
+    ],
+
 ];

@@ -206,22 +206,46 @@ const PreviewPage: React.FC = () => {
         });
 
         try {
-            const response = await axios.post('/api/applicants/submit');
+            const response = await axios.post('/api/applicants/submit', {}, {
+                timeout: 30000 // 30 seconds timeout to allow for email sending
+            });
             if (response.data?.success) {
                 setUserStatus('submitted');
                 
-                // Show success message only after successful submission and email sending (implied by backend response)
+                // Show success message
                 await Swal.fire({
                     title: 'Submitted!',
                     text: 'Your application has been submitted successfully. A confirmation email has been sent to your registered email address.',
                     icon: 'success',
                     confirmButtonColor: '#16a34a'
                 });
+            } else {
+                // Handle case where success is false but status is 200
+                if (response.data?.message === 'Application already submitted.') {
+                    setUserStatus(response.data.status || 'submitted');
+                    
+                    Swal.fire({
+                        title: 'Application Status',
+                        text: 'Your application has already been submitted.',
+                        icon: 'info'
+                    });
+                } else {
+                    Swal.fire({
+                        title: 'Submission Failed',
+                        text: response.data?.message || 'Application submission failed. Please try again.',
+                        icon: 'error'
+                    });
+                }
             }
         } catch (error: any) {
+            console.error("Submission error:", error);
+            const errorMessage = error.response?.data?.message || 
+                                 (error.code === 'ECONNABORTED' ? 'Submission timed out. Please check your internet connection or try again later.' : 
+                                 'Failed to submit application. Please check your connection and try again.');
+            
             Swal.fire({
                 title: 'Error',
-                text: error.response?.data?.message || 'Failed to submit application.',
+                text: errorMessage,
                 icon: 'error'
             });
         } finally {
@@ -392,9 +416,18 @@ const PreviewPage: React.FC = () => {
                                             <p>Your application has been submitted and is pending review. You cannot edit details at this time.</p>
                                         </div>
                                     )}
-                                    {userStatus === 'approved' && (
+                                    {userStatus.toLowerCase() === 'approved' && (
                                         <div className="mt-2 text-sm text-green-700">
                                             <p>Your application has been approved! You can now proceed to fee payment.</p>
+                                            <button
+                                                className="mt-3 px-4 py-2 bg-[#22c55e] hover:bg-[#16a34a] text-white text-xs font-bold uppercase rounded shadow-sm flex items-center"
+                                                onClick={() => navigate('/applicant/fee')}
+                                            >
+                                                Pay Fees Now
+                                                <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                                                </svg>
+                                            </button>
                                         </div>
                                     )}
                                 </div>
@@ -523,12 +556,19 @@ const PreviewPage: React.FC = () => {
                         </button>
                     )}
                     
-                    {userStatus === 'approved' ? (
+                    {userStatus.toLowerCase() === 'approved' ? (
                         <button
                             className="flex-1 px-6 py-2 bg-[#22c55e] hover:bg-[#16a34a] text-white text-sm font-semibold rounded shadow-md"
                             onClick={() => navigate('/applicant/fee')}
                         >
-                            Proceed to Fee
+                            Pay Fees
+                        </button>
+                    ) : userStatus.toLowerCase() === 'registered' ? (
+                        <button
+                            className="flex-1 px-6 py-2 bg-[#0ea5e9] hover:bg-[#0284c7] text-white text-sm font-semibold rounded shadow-md"
+                            onClick={() => navigate('/applicant/fee')}
+                        >
+                            View Receipt
                         </button>
                     ) : (isEditable) ? (
                         <button

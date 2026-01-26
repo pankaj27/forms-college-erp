@@ -17,13 +17,15 @@ class StudentApplicationSubmitted extends Mailable
 
     public $applicant;
     public $session;
+    protected $pdfOutput;
 
     /**
      * Create a new message instance.
      */
-    public function __construct(Applicant $applicant)
+    public function __construct(Applicant $applicant, $pdfOutput)
     {
         $this->applicant = $applicant;
+        $this->pdfOutput = $pdfOutput;
         $year = date('Y');
         $this->session = $year . '-' . ($year + 1);
     }
@@ -55,6 +57,9 @@ class StudentApplicationSubmitted extends Mailable
      */
     public function attachments(): array
     {
-        return [];
+        return [
+            Attachment::fromData(fn () => $this->pdfOutput, 'Application_Form.pdf')
+                ->withMime('application/pdf'),
+        ];
     }
 }

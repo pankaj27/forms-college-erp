@@ -126,6 +126,16 @@ class DynamicFormController extends Controller
 
     public function getFeesDetails($groupName)
     {
+        $user = Auth::guard('applicant')->user();
+        $status = strtolower($user->status);
+
+        if ($status !== 'approved' && $status !== 'registered') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Application not approved.',
+            ], 403);
+        }
+
         $group = \App\Models\FeesGroup::where('name', $groupName)
             ->with(['feesGroupMasters.feesMaster.feesHead'])
             ->first();
