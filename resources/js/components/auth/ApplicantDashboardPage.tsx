@@ -85,15 +85,22 @@ const ApplicantDashboardPage: React.FC = () => {
 
     // Determine the first pending step to set the "Continue Application" link
     const firstPendingStep = steps.find(step => !user?.progress?.[step.key as keyof typeof user.progress]);
-    const continueLink = (user?.status === 'submitted' || user?.status === 'approved') 
-        ? '/applicant/preview' 
-        : (firstPendingStep ? firstPendingStep.path : '/applicant/personal');
+    
+    let continueLink = '/applicant/personal';
+    if (user?.status === 'Registered') {
+        continueLink = '/applicant/fee';
+    } else if (user?.status === 'submitted' || user?.status === 'approved') {
+        continueLink = '/applicant/preview';
+    } else if (firstPendingStep) {
+        continueLink = firstPendingStep.path;
+    }
 
     const statusColors: Record<string, string> = {
         draft: 'bg-gray-100 text-gray-800 border-gray-200',
         submitted: 'bg-blue-100 text-blue-800 border-blue-200',
         approved: 'bg-green-100 text-green-800 border-green-200',
         rejected: 'bg-red-100 text-red-800 border-red-200',
+        Registered: 'bg-purple-100 text-purple-800 border-purple-200',
     };
 
     return (
@@ -163,15 +170,17 @@ const ApplicantDashboardPage: React.FC = () => {
                             )}
                         </p>
                         <div className="flex gap-2">
-                            <Link
-                                to={continueLink}
-                                className="inline-flex items-center px-4 py-2 bg-[#f97316] hover:bg-[#ea580c] text-white text-sm font-medium rounded shadow-sm transition-colors"
-                            >
-                                Continue Application
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 ml-2">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
-                                </svg>
-                            </Link>
+                            {user?.status !== 'Registered' && (
+                                <Link
+                                    to={continueLink}
+                                    className="inline-flex items-center px-4 py-2 bg-[#f97316] hover:bg-[#ea580c] text-white text-sm font-medium rounded shadow-sm transition-colors"
+                                >
+                                    Continue Application
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 ml-2">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
+                                    </svg>
+                                </Link>
+                            )}
                         </div>
                     </div>
 

@@ -269,7 +269,7 @@ class ApplicantAuthController extends Controller
                     'correspondence' => $correspondenceDetails,
                     'uploads' => $uploadsCompleted,
                     'preview' => $previewCompleted,
-                    'fee' => false, // Placeholder
+                    'fee' => $user->status === 'Registered',
                 ]
             ],
         ]);
