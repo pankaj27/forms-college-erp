@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\DB;
 
 class ApplicantPaymentController extends Controller
 {
@@ -49,9 +50,27 @@ class ApplicantPaymentController extends Controller
             'uploads'
         ])->find($user->id);
 
+        // Fetch Institute and Branch details
+        $instituteId = null;
+        $branchId = null;
+        
+        if ($applicant->programmeDetails) {
+            if ($applicant->programmeDetails->region_code) {
+                $branchId = $applicant->programmeDetails->region_code;
+                $institute = DB::table('institute_branches')
+                    ->where('id', $branchId)
+                    ->first();
+                if ($institute) {
+                    $instituteId = $institute->institute_id;
+                }
+            }
+        }
+
         // Create Final Registration
         FinalRegistration::create([
             'applicant_id' => $user->id,
+            'institute_id' => $instituteId,
+            'branch_id' => $branchId,
             'payment_method' => 'bank_transfer',
             'payment_status' => 'pending',
             'amount' => $request->amount,
@@ -99,9 +118,27 @@ class ApplicantPaymentController extends Controller
             'uploads'
         ])->find($user->id);
 
+        // Fetch Institute and Branch details
+        $instituteId = null;
+        $branchId = null;
+        
+        if ($applicant->programmeDetails) {
+            if ($applicant->programmeDetails->region_code) {
+                $branchId = $applicant->programmeDetails->region_code;
+                $institute = DB::table('institute_branches')
+                    ->where('id', $branchId)
+                    ->first();
+                if ($institute) {
+                    $instituteId = $institute->institute_id;
+                }
+            }
+        }
+
         // Create Final Registration
         FinalRegistration::create([
             'applicant_id' => $user->id,
+            'institute_id' => $instituteId,
+            'branch_id' => $branchId,
             'payment_method' => $request->payment_method, // e.g. 'gateway' or specific gateway name
             'payment_status' => 'completed',
             'amount' => $request->amount,

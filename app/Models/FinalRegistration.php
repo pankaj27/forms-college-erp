@@ -11,6 +11,8 @@ class FinalRegistration extends Model
 
     protected $fillable = [
         'applicant_id',
+        'institute_id',
+        'branch_id',
         'payment_method',
         'payment_status',
         'amount',
