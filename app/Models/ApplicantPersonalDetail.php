@@ -30,11 +30,13 @@ class ApplicantPersonalDetail extends Model
         'alternate_email',
         'mobile',
         'alternate_mobile',
+        'nad_username',
+        'nad_certificate_id',
     ];
 
     protected $casts = [
-        'apar_dob' => 'date',
-        'certificate_dob' => 'date',
+        'apar_dob' => 'date:Y-m-d',
+        'certificate_dob' => 'date:Y-m-d',
     ];
 
     public function applicant(): BelongsTo

@@ -101,7 +101,7 @@ class ApplicantPersonalDetailsController extends Controller
             'success' => true,
             'message' => 'Personal details saved successfully.',
             'data' => $detail,
-            'redirect_to' => url('/applicant/personal/summary'),
+            'redirect_to' => '/applicant/personal/summary',
         ]);
     }
 }

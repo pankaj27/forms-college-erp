@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import Swal from 'sweetalert2';
 
 interface PersonalDetails {
     apar_id: string;
@@ -70,6 +71,7 @@ const PersonalDetailsFormPage: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [errors, setErrors] = useState<Record<string, string[]>>({});
+    const [userProgress, setUserProgress] = useState<Record<string, boolean> | null>(null);
     const navigate = useNavigate();
 
     const steps = [
@@ -90,9 +92,10 @@ const PersonalDetailsFormPage: React.FC = () => {
             let userMobile = '';
 
             try {
-                const meResponse = await axios.get('/api/auth/me');
+                const meResponse = await axios.get('/api/applicants/me');
                 if (meResponse.data?.authenticated && meResponse.data.user) {
                     const user = meResponse.data.user;
+                    setUserProgress(user.progress);
                     userEmail = user.email || '';
                     userMobile = user.mobile || '';
 
@@ -163,15 +166,45 @@ const PersonalDetailsFormPage: React.FC = () => {
             if (response.data?.success) {
                 const redirectTo: string = response.data.redirect_to || '/applicant/personal/summary';
                 navigate(redirectTo.replace(window.location.origin, ''));
+            } else {
+                 // Handle 200 OK but success: false
+                 const message = response.data?.message || 'Failed to save details. Please try again.';
+                 setErrors({ general: [message] });
+                 Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: message,
+                    confirmButtonColor: '#d33',
+                    confirmButtonText: 'Okay'
+                });
             }
         } catch (err: any) {
             if (err.response?.status === 422) {
-                setErrors(err.response.data.errors || {});
+                const errorData = err.response.data.errors || {};
+                setErrors(errorData);
+                
+                // Format errors for SweetAlert
+                const errorMessages = Object.values(errorData).flat().join('<br>');
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Validation Error',
+                    html: errorMessages,
+                    confirmButtonColor: '#d33',
+                    confirmButtonText: 'Okay'
+                });
             } else if (err.response?.status === 401) {
                 window.location.href = '/auth/login';
                 return;
             } else {
-                setErrors({ general: ['Failed to save details. Please try again.'] });
+                const errorMessage = err.response?.data?.message || 'Failed to save details. Please try again.';
+                setErrors({ general: [errorMessage] });
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: errorMessage,
+                    confirmButtonColor: '#d33',
+                    confirmButtonText: 'Okay'
+                });
             }
         } finally {
             setSubmitting(false);
@@ -337,25 +370,31 @@ const PersonalDetailsFormPage: React.FC = () => {
                                     <label className="block font-medium mb-1">
                                         Gender (as per APAR)
                                     </label>
-                                    <input
-                                        type="text"
-                                        className="w-full border border-gray-300 rounded px-3 py-2"
-                                        placeholder="Enter gender as per APAR"
+                                    <select
+                                        className="w-full border border-gray-300 rounded px-3 py-2 bg-white"
                                         value={details.apar_gender}
                                         onChange={handleChange('apar_gender')}
-                                    />
+                                    >
+                                        <option value="">Select Gender</option>
+                                        <option value="Male">Male</option>
+                                        <option value="Female">Female</option>
+                                        <option value="Others">Others</option>
+                                    </select>
                                 </div>
                                 <div>
                                     <label className="block font-medium mb-1">
                                         Gender (as per Class X/XII/Matriculation marksheet/certificate)
                                     </label>
-                                    <input
-                                        type="text"
-                                        className="w-full border border-gray-300 rounded px-3 py-2"
-                                        placeholder="Enter gender as per marksheet/certificate"
+                                    <select
+                                        className="w-full border border-gray-300 rounded px-3 py-2 bg-white"
                                         value={details.certificate_gender}
                                         onChange={handleChange('certificate_gender')}
-                                    />
+                                    >
+                                        <option value="">Select Gender</option>
+                                        <option value="Male">Male</option>
+                                        <option value="Female">Female</option>
+                                        <option value="Others">Others</option>
+                                    </select>
                                 </div>
                             </div>
                         </div>

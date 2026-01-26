@@ -79,7 +79,7 @@ class ApplicantProgrammeDetailsController extends Controller
             'success' => true,
             'message' => 'Programme details saved successfully.',
             'data' => $detail,
-            'redirect_to' => url('/applicant/programme/summary'),
+            'redirect_to' => '/applicant/programme/summary',
         ]);
     }
 

@@ -2,21 +2,25 @@ import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
-interface QualificationDetails {
-    relevant_qualification?: string;
-    main_subjects?: string;
-    year_of_passing?: number;
-    division?: string;
-    percent_marks?: string | number;
-    board_code?: string;
-    board_roll_number?: string;
-    nad_username?: string;
-    nad_certificate_id?: string;
+interface QualificationRow {
+    relevant_qualification: string;
+    main_subjects: string;
+    year_of_passing: string;
+    division: string;
+    percent_marks: string;
+    board_code: string;
+    board_roll_number: string;
+}
+
+interface QualificationDetailsResponse {
+    qualifications: QualificationRow[];
+    nad_username: string;
+    nad_certificate_id: string;
 }
 
 const QualificationDetailsSummaryPage: React.FC = () => {
     const currentYear = new Date().getFullYear();
-    const [details, setDetails] = useState<QualificationDetails | null>(null);
+    const [data, setData] = useState<QualificationDetailsResponse | null>(null);
     const [loading, setLoading] = useState(true);
     const [userProgress, setUserProgress] = useState<any>(null);
     const navigate = useNavigate();
@@ -42,7 +46,7 @@ const QualificationDetailsSummaryPage: React.FC = () => {
                 ]);
 
                 if (detailsRes.data?.success && detailsRes.data.data) {
-                    setDetails(detailsRes.data.data as QualificationDetails);
+                    setData(detailsRes.data.data);
                 } else {
                     navigate('/applicant/qualification');
                     return;
@@ -65,21 +69,13 @@ const QualificationDetailsSummaryPage: React.FC = () => {
         fetchDetails();
     }, [navigate]);
 
-    if (loading || !details) {
+    if (loading || !data) {
         return (
             <div className="min-h-screen bg-[#f5f7fb] flex items-center justify-center text-sm text-gray-700">
                 Loading qualification summary...
             </div>
         );
     }
-
-    const formatDivision = (value?: string) => {
-        if (!value) return '-';
-        if (value === 'FIRST') return 'First';
-        if (value === 'SECOND') return 'Second';
-        if (value === 'THIRD') return 'Third';
-        return value;
-    };
 
     return (
         <div className="min-h-screen bg-[#f5f7fb] flex flex-col">
@@ -164,90 +160,62 @@ const QualificationDetailsSummaryPage: React.FC = () => {
                 </div>
             </header>
 
-            <main className="flex-1">
-                <div className="w-full py-6 space-y-4">
+            <main className="flex-1 w-full max-w-7xl mx-auto px-4 py-6">
+                <div className="w-full space-y-4">
                     <div className="bg-white border border-gray-200 rounded shadow-sm">
                         <div className="px-4 py-3 border-b border-gray-200 bg-[#f9fafb] rounded-t">
                             <h2 className="text-sm font-semibold text-[#111827]">
                                 Qualification Details
                             </h2>
                         </div>
-                        <div className="p-4 text-xs md:text-sm space-y-6">
+                        <div className="p-4">
                             <div className="overflow-x-auto">
-                                <table className="min-w-full border border-gray-200 text-xs md:text-sm">
-                                    <tbody>
-                                        <tr className="odd:bg-gray-50">
-                                            <td className="w-1/2 border border-gray-200 px-3 py-1.5 font-semibold">
-                                                Qualification
-                                            </td>
-                                            <td className="border border-gray-200 px-3 py-1.5">
-                                                {details.relevant_qualification || '-'}
-                                            </td>
+                                <table className="w-full text-left border-collapse border border-gray-200">
+                                    <thead>
+                                        <tr className="bg-gray-50 text-xs text-gray-700 uppercase">
+                                            <th className="p-2 border border-gray-200">Qualification</th>
+                                            <th className="p-2 border border-gray-200">Main Subject</th>
+                                            <th className="p-2 border border-gray-200">Year</th>
+                                            <th className="p-2 border border-gray-200">Division</th>
+                                            <th className="p-2 border border-gray-200">% Marks</th>
+                                            <th className="p-2 border border-gray-200">Board/University</th>
+                                            <th className="p-2 border border-gray-200">Roll No</th>
                                         </tr>
-                                        <tr className="odd:bg-gray-50">
-                                            <td className="border border-gray-200 px-3 py-1.5 font-semibold">
-                                                Main Subjects
-                                            </td>
-                                            <td className="border border-gray-200 px-3 py-1.5">
-                                                {details.main_subjects || '-'}
-                                            </td>
-                                        </tr>
-                                        <tr className="odd:bg-gray-50">
-                                            <td className="border border-gray-200 px-3 py-1.5 font-semibold">
-                                                Year of Passing
-                                            </td>
-                                            <td className="border border-gray-200 px-3 py-1.5">
-                                                {details.year_of_passing || '-'}
-                                            </td>
-                                        </tr>
-                                        <tr className="odd:bg-gray-50">
-                                            <td className="border border-gray-200 px-3 py-1.5 font-semibold">
-                                                Percent of Marks (rounded off)
-                                            </td>
-                                            <td className="border border-gray-200 px-3 py-1.5">
-                                                {details.percent_marks ?? '-'}
-                                            </td>
-                                        </tr>
-                                        <tr className="odd:bg-gray-50">
-                                            <td className="border border-gray-200 px-3 py-1.5 font-semibold">
-                                                Division
-                                            </td>
-                                            <td className="border border-gray-200 px-3 py-1.5">
-                                                {formatDivision(details.division)}
-                                            </td>
-                                        </tr>
-                                        <tr className="odd:bg-gray-50">
-                                            <td className="border border-gray-200 px-3 py-1.5 font-semibold">
-                                                Board Code
-                                            </td>
-                                            <td className="border border-gray-200 px-3 py-1.5">
-                                                {details.board_code || '-'}
-                                            </td>
-                                        </tr>
-                                        <tr className="odd:bg-gray-50">
-                                            <td className="border border-gray-200 px-3 py-1.5 font-semibold">
-                                                Board Roll Number
-                                            </td>
-                                            <td className="border border-gray-200 px-3 py-1.5">
-                                                {details.board_roll_number || '-'}
-                                            </td>
-                                        </tr>
-                                        <tr className="odd:bg-gray-50">
-                                            <td className="border border-gray-200 px-3 py-1.5 font-semibold">
-                                                NAD Details
-                                            </td>
-                                            <td className="border border-gray-200 px-3 py-1.5">
-                                                {details.nad_username || details.nad_certificate_id
-                                                    ? `${details.nad_username || ''}${
-                                                          details.nad_username && details.nad_certificate_id
-                                                              ? ', '
-                                                              : ''
-                                                      }${details.nad_certificate_id || ''}`
-                                                    : '-'}
-                                            </td>
-                                        </tr>
+                                    </thead>
+                                    <tbody className="text-xs md:text-sm">
+                                        {data.qualifications.map((row, index) => (
+                                            <tr key={index} className="hover:bg-gray-50">
+                                                <td className="p-2 border border-gray-200">{row.relevant_qualification}</td>
+                                                <td className="p-2 border border-gray-200">{row.main_subjects}</td>
+                                                <td className="p-2 border border-gray-200">{row.year_of_passing}</td>
+                                                <td className="p-2 border border-gray-200">{row.division}</td>
+                                                <td className="p-2 border border-gray-200">{row.percent_marks}</td>
+                                                <td className="p-2 border border-gray-200">{row.board_code}</td>
+                                                <td className="p-2 border border-gray-200">{row.board_roll_number}</td>
+                                            </tr>
+                                        ))}
                                     </tbody>
                                 </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-white border border-gray-200 rounded shadow-sm">
+                        <div className="px-4 py-3 border-b border-gray-200 bg-[#f9fafb] rounded-t">
+                            <h2 className="text-sm font-semibold text-[#111827]">
+                                NAD Details
+                            </h2>
+                        </div>
+                        <div className="p-4 text-xs md:text-sm">
+                            <div className="grid md:grid-cols-2 gap-4">
+                                <div>
+                                    <span className="font-semibold text-gray-700">NAD Username:</span>
+                                    <span className="ml-2 text-gray-900">{data.nad_username || '-'}</span>
+                                </div>
+                                <div>
+                                    <span className="font-semibold text-gray-700">NAD Certificate ID:</span>
+                                    <span className="ml-2 text-gray-900">{data.nad_certificate_id || '-'}</span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -290,4 +258,3 @@ const QualificationDetailsSummaryPage: React.FC = () => {
 };
 
 export default QualificationDetailsSummaryPage;
-

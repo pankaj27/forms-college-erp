@@ -30,6 +30,7 @@ const PersonalDetailsSummaryPage: React.FC = () => {
     const currentYear = new Date().getFullYear();
     const [details, setDetails] = useState<PersonalDetails | null>(null);
     const [loading, setLoading] = useState(true);
+    const [userProgress, setUserProgress] = useState<Record<string, boolean> | null>(null);
     const navigate = useNavigate();
 
     const steps = [
@@ -47,6 +48,11 @@ const PersonalDetailsSummaryPage: React.FC = () => {
     useEffect(() => {
         const fetchDetails = async () => {
             try {
+                const meResponse = await axios.get('/api/applicants/me');
+                if (meResponse.data?.authenticated && meResponse.data.user) {
+                    setUserProgress(meResponse.data.user.progress);
+                }
+
                 const response = await axios.get('/api/applicants/personal-details');
                 if (response.data?.success && response.data.data) {
                     setDetails(response.data.data as PersonalDetails);

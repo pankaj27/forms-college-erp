@@ -77,7 +77,7 @@ class ApplicantCorrespondenceDetailsController extends Controller
             'success' => true,
             'message' => 'Correspondence details saved successfully.',
             'data' => $detail,
-            'redirect_to' => url('/applicant/uploads'),
+            'redirect_to' => '/applicant/uploads',
         ]);
     }
 }

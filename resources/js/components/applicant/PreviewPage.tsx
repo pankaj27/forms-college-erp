@@ -43,7 +43,8 @@ interface ProgrammeDetails {
     medium: string;
 }
 
-interface QualificationDetails {
+interface QualificationItem {
+    id: number;
     relevant_qualification: string;
     main_subjects: string;
     year_of_passing: string;
@@ -51,6 +52,10 @@ interface QualificationDetails {
     percent_marks: string;
     board_code: string;
     board_roll_number: string;
+}
+
+interface QualificationDetails {
+    qualifications: QualificationItem[];
     nad_username: string;
     nad_certificate_id: string;
 }
@@ -85,6 +90,7 @@ const PreviewPage: React.FC = () => {
     const [qualification, setQualification] = useState<QualificationDetails | null>(null);
     const [correspondence, setCorrespondence] = useState<CorrespondenceDetails | null>(null);
     const [uploads, setUploads] = useState<Record<string, UploadedFile>>({});
+    const [branches, setBranches] = useState<{id: number, name: string, code: string}[]>([]);
 
     const steps = [
         { key: 'personal', label: 'Personal', number: 1, path: '/applicant/personal' },
@@ -122,14 +128,16 @@ const PreviewPage: React.FC = () => {
                     programmeRes,
                     qualificationRes,
                     correspondenceRes,
-                    uploadsRes
+                    uploadsRes,
+                    branchesRes
                 ] = await Promise.all([
                     axios.get('/api/applicants/me'),
                     axios.get('/api/applicants/personal-details'),
                     axios.get('/api/applicants/programme-details'),
                     axios.get('/api/applicants/qualification-details'),
                     axios.get('/api/applicants/correspondence-details'),
-                    axios.get('/api/applicants/uploads')
+                    axios.get('/api/applicants/uploads'),
+                    axios.get('/api/applicants/branches')
                 ]);
 
                 if (meRes.data?.authenticated && meRes.data.user) {
@@ -143,6 +151,7 @@ const PreviewPage: React.FC = () => {
                 if (qualificationRes.data?.success) setQualification(qualificationRes.data.data);
                 if (correspondenceRes.data?.success) setCorrespondence(correspondenceRes.data.data);
                 if (uploadsRes.data?.success) setUploads(uploadsRes.data.data);
+                if (branchesRes.data?.success) setBranches(branchesRes.data.data);
 
             } catch (err: any) {
                 if (err.response?.status === 401) {
@@ -465,7 +474,9 @@ const PreviewPage: React.FC = () => {
                                     <tbody>
                                         <DetailRow label="Programme Type" value={programme?.programme_type} />
                                         <DetailRow label="Mode of Study" value={programme?.mode_of_study} />
-                                        <DetailRow label="Enrollment Number" value={programme?.programme_enrollment} />
+                                        <DetailRow label="Programme For Enrollment" value={programme?.programme_enrollment} />
+                                        <DetailRow label="Campus" value={branches.find(b => String(b.id) === programme?.region_code)?.name || programme?.region_code} />
+                                        <DetailRow label="Branch Code" value={programme?.study_center_code} />
                                         <DetailRow label="Medium" value={programme?.medium} />
                                     </tbody>
                                 </table>
@@ -476,16 +487,56 @@ const PreviewPage: React.FC = () => {
                         <div className="border border-gray-200 rounded overflow-hidden">
                             <SectionHeader title="3. Qualification Details" editPath="/applicant/qualification" isEditable={isEditable} />
                             <div className="p-4">
-                                <table className="w-full">
-                                    <tbody>
-                                        <DetailRow label="Relevant Qualification" value={qualification?.relevant_qualification} />
-                                        <DetailRow label="Main Subjects" value={qualification?.main_subjects} />
-                                        <DetailRow label="Year of Passing" value={qualification?.year_of_passing} />
-                                        <DetailRow label="Board" value={qualification?.board_code} />
-                                        <DetailRow label="% Marks" value={qualification?.percent_marks} />
-                                        <DetailRow label="Division" value={qualification?.division} />
-                                    </tbody>
-                                </table>
+                                {/* NAD Details */}
+                                <div className="mb-4 bg-blue-50 p-3 rounded border border-blue-100">
+                                    <h4 className="text-sm font-bold text-blue-800 mb-2">NAD Details</h4>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="flex flex-col">
+                                            <span className="text-xs text-gray-500">NAD Username</span>
+                                            <span className="text-sm font-semibold text-gray-800">{qualification?.nad_username || '-'}</span>
+                                        </div>
+                                        <div className="flex flex-col">
+                                            <span className="text-xs text-gray-500">NAD Certificate ID</span>
+                                            <span className="text-sm font-semibold text-gray-800">{qualification?.nad_certificate_id || '-'}</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Qualification Table */}
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left border-collapse">
+                                        <thead>
+                                            <tr className="bg-gray-100 border-b border-gray-200 text-xs text-gray-600 uppercase tracking-wider">
+                                                <th className="px-3 py-2 font-semibold">Qualification</th>
+                                                <th className="px-3 py-2 font-semibold">Board/University</th>
+                                                <th className="px-3 py-2 font-semibold">Subjects</th>
+                                                <th className="px-3 py-2 font-semibold text-center">Year</th>
+                                                <th className="px-3 py-2 font-semibold text-center">% Marks</th>
+                                                <th className="px-3 py-2 font-semibold text-center">Division</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-100">
+                                            {qualification?.qualifications?.map((qual, index) => (
+                                                <tr key={index} className="hover:bg-gray-50">
+                                                    <td className="px-3 py-2 text-sm text-gray-800 font-medium">{qual.relevant_qualification}</td>
+                                                    <td className="px-3 py-2 text-sm text-gray-600">
+                                                        <div>{qual.board_code}</div>
+                                                        {qual.board_roll_number && <div className="text-xs text-gray-400">Roll: {qual.board_roll_number}</div>}
+                                                    </td>
+                                                    <td className="px-3 py-2 text-sm text-gray-600">{qual.main_subjects || '-'}</td>
+                                                    <td className="px-3 py-2 text-sm text-gray-600 text-center">{qual.year_of_passing}</td>
+                                                    <td className="px-3 py-2 text-sm text-gray-600 text-center">{qual.percent_marks}%</td>
+                                                    <td className="px-3 py-2 text-sm text-gray-600 text-center">{qual.division}</td>
+                                                </tr>
+                                            ))}
+                                            {(!qualification?.qualifications || qualification.qualifications.length === 0) && (
+                                                <tr>
+                                                    <td colSpan={6} className="px-3 py-4 text-center text-sm text-gray-500 italic">No qualification details found.</td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         </div>
 

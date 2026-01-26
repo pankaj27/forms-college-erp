@@ -16,8 +16,6 @@ class ApplicantQualificationDetail extends Model
         'percent_marks',
         'board_code',
         'board_roll_number',
-        'nad_username',
-        'nad_certificate_id',
     ];
 
     public function applicant(): BelongsTo

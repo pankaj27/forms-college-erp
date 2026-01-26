@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import Swal from 'sweetalert2';
 
-interface QualificationDetails {
+interface QualificationRow {
     relevant_qualification: string;
     main_subjects: string;
     year_of_passing: string;
@@ -10,11 +11,15 @@ interface QualificationDetails {
     percent_marks: string;
     board_code: string;
     board_roll_number: string;
+}
+
+interface QualificationDetailsState {
+    qualifications: QualificationRow[];
     nad_username: string;
     nad_certificate_id: string;
 }
 
-const emptyQualification: QualificationDetails = {
+const emptyRow: QualificationRow = {
     relevant_qualification: '',
     main_subjects: '',
     year_of_passing: '',
@@ -22,15 +27,19 @@ const emptyQualification: QualificationDetails = {
     percent_marks: '',
     board_code: '',
     board_roll_number: '',
-    nad_username: '',
-    nad_certificate_id: '',
 };
 
 const QualificationDetailsFormPage: React.FC = () => {
     const currentYear = new Date().getFullYear();
-    const [details, setDetails] = useState<QualificationDetails>(emptyQualification);
-    const [mainSubjectsSelection, setMainSubjectsSelection] = useState<string[]>([]);
-    const [boards, setBoards] = useState<{ name: string; code: string }[]>([]);
+    const [state, setState] = useState<QualificationDetailsState>({
+        qualifications: [{ ...emptyRow }],
+        nad_username: '',
+        nad_certificate_id: '',
+    });
+
+    // Map of row index to available boards
+    const [rowBoards, setRowBoards] = useState<Record<number, { name: string; code: string }[]>>({});
+    
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [errors, setErrors] = useState<Record<string, string[]>>({});
@@ -52,13 +61,12 @@ const QualificationDetailsFormPage: React.FC = () => {
     useEffect(() => {
         const fetchDetails = async () => {
             try {
-                // Check user status first
-                const meResponse = await axios.get('/api/auth/me');
+                // Check user status
+                const meResponse = await axios.get('/api/applicants/me');
                 if (meResponse.data?.authenticated && meResponse.data.user) {
                     const user = meResponse.data.user;
                     setUserProgress(user.progress);
                     
-                    // Check if application is submitted or approved
                     if (user.status === 'submitted' || user.status === 'approved') {
                         navigate('/applicant/qualification/summary');
                         return;
@@ -68,20 +76,25 @@ const QualificationDetailsFormPage: React.FC = () => {
                 const detailsRes = await axios.get('/api/applicants/qualification-details');
 
                 if (detailsRes.data?.success && detailsRes.data.data) {
-                    const data = detailsRes.data.data as Partial<QualificationDetails>;
-                    const merged = {
-                        ...emptyQualification,
-                        ...data,
-                    };
-                    setDetails(merged);
-                    if (merged.main_subjects) {
-                        setMainSubjectsSelection(
-                            merged.main_subjects
-                                .split(',')
-                                .map((s) => s.trim())
-                                .filter((s) => s.length > 0)
-                        );
+                    const data = detailsRes.data.data;
+                    
+                    let loadedQualifications = data.qualifications;
+                    if (!Array.isArray(loadedQualifications) || loadedQualifications.length === 0) {
+                        loadedQualifications = [{ ...emptyRow }];
                     }
+
+                    setState({
+                        qualifications: loadedQualifications,
+                        nad_username: data.nad_username || '',
+                        nad_certificate_id: data.nad_certificate_id || '',
+                    });
+
+                    // Fetch boards for loaded qualifications
+                    loadedQualifications.forEach((qual: QualificationRow, index: number) => {
+                        if (qual.relevant_qualification) {
+                            fetchBoards(index, qual.relevant_qualification);
+                        }
+                    });
                 }
             } catch (err: any) {
                 if (err.response?.status === 401) {
@@ -95,55 +108,80 @@ const QualificationDetailsFormPage: React.FC = () => {
         fetchDetails();
     }, []);
 
-    useEffect(() => {
-        const fetchBoards = async () => {
-            if (!details.relevant_qualification) {
-                setBoards([]);
-                return;
+    const fetchBoards = async (index: number, qualification: string) => {
+        if (!qualification) {
+            setRowBoards(prev => ({ ...prev, [index]: [] }));
+            return;
+        }
+
+        let programeLevel = qualification;
+        // Map UI values to DB values if needed
+        if (qualification === '10th') programeLevel = '10th';
+        else if (qualification === '10+2 th') programeLevel = '10+2 th';
+        else if (qualification === 'Graduation') programeLevel = 'Bachelor';
+        else if (qualification === 'Master') programeLevel = 'Master';
+        
+        // If "Other", maybe we don't fetch boards?
+        if (qualification === 'Other') {
+             setRowBoards(prev => ({ ...prev, [index]: [] }));
+             return;
+        }
+
+        try {
+            const response = await axios.get('/api/applicants/qualification-details/boards', {
+                params: { programe_level: programeLevel },
+            });
+            if (response.data?.success) {
+                setRowBoards(prev => ({ ...prev, [index]: response.data.data }));
             }
+        } catch (err) {
+            console.error('Failed to fetch boards', err);
+            setRowBoards(prev => ({ ...prev, [index]: [] }));
+        }
+    };
 
-            // Only fetch for 10th or if we want to support others later
-            // The requirement specifically mentions "if user selecte relevant qualification from drop down as 10th"
-            // But it says "generated from the database table 'board_masters' with selected course_level value"
-            // So it implies we should try fetching for any selected level if it exists in DB.
+    const handleRowChange = (index: number, field: keyof QualificationRow, value: string) => {
+        const newQualifications = [...state.qualifications];
+        newQualifications[index] = { ...newQualifications[index], [field]: value };
+        
+        setState(prev => ({ ...prev, qualifications: newQualifications }));
 
-            try {
-                const response = await axios.get('/api/applicants/qualification-details/boards', {
-                    params: { course_level: details.relevant_qualification },
-                });
-                if (response.data?.success) {
-                    setBoards(response.data.data);
-                }
-            } catch (err) {
-                console.error('Failed to fetch boards', err);
-                setBoards([]);
-            }
-        };
+        if (field === 'relevant_qualification') {
+            fetchBoards(index, value);
+            // Reset board code if qualification changes
+            newQualifications[index].board_code = '';
+             setState(prev => ({ ...prev, qualifications: newQualifications }));
+        }
+    };
 
-        fetchBoards();
-    }, [details.relevant_qualification]);
+    const handleNadChange = (field: 'nad_username' | 'nad_certificate_id', value: string) => {
+        setState(prev => ({ ...prev, [field]: value }));
+    };
 
-    const handleChange =
-        (field: keyof QualificationDetails) =>
-        (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-            const value = e.target.value;
-            setDetails((prev) => ({
-                ...prev,
-                [field]: value,
-            }));
-        };
+    const addRow = () => {
+        setState(prev => ({
+            ...prev,
+            qualifications: [...prev.qualifications, { ...emptyRow }]
+        }));
+    };
 
-    const toggleSubject = (subject: string) => {
-        setMainSubjectsSelection((prev) => {
-            const exists = prev.includes(subject);
-            const next = exists ? prev.filter((s) => s !== subject) : [...prev, subject];
-            const joined = next.join(', ');
-            setDetails((d) => ({
-                ...d,
-                main_subjects: joined,
-            }));
-            return next;
-        });
+    const removeRow = (index: number) => {
+        if (state.qualifications.length > 1) {
+            const newQualifications = state.qualifications.filter((_, i) => i !== index);
+            setState(prev => ({ ...prev, qualifications: newQualifications }));
+            
+            // Also clean up rowBoards
+            const newRowBoards = { ...rowBoards };
+            delete newRowBoards[index];
+            // We might need to shift keys in rowBoards or just re-fetch. 
+            // Simpler to just let it be, but keys might mismatch.
+            // Actually, if we remove index 0, index 1 becomes 0.
+            // So we should probably rebuild rowBoards or just refetch for all (easier).
+            // Or better: Re-fetch for all remaining rows to be safe.
+            newQualifications.forEach((qual, idx) => {
+                if (qual.relevant_qualification) fetchBoards(idx, qual.relevant_qualification);
+            });
+        }
     };
 
     const years: number[] = [];
@@ -154,24 +192,21 @@ const QualificationDetailsFormPage: React.FC = () => {
     const handleSubmit = async () => {
         const newErrors: Record<string, string[]> = {};
 
-        if (!details.relevant_qualification) {
-            newErrors.relevant_qualification = ['Relevant Qualification is required.'];
-        }
-        if (!details.year_of_passing) {
-            newErrors.year_of_passing = ['Year of Passing is required.'];
-        }
-        if (!details.division) {
-            newErrors.division = ['Division is required.'];
-        }
-        if (!details.percent_marks) {
-            newErrors.percent_marks = ['Percent of Marks is required.'];
-        }
-        if (!details.board_code) {
-            newErrors.board_code = ['Board Code is required.'];
-        }
+        state.qualifications.forEach((qual, index) => {
+            if (!qual.relevant_qualification) newErrors[`qualifications.${index}.relevant_qualification`] = ['Required'];
+            if (!qual.year_of_passing) newErrors[`qualifications.${index}.year_of_passing`] = ['Required'];
+            if (!qual.division) newErrors[`qualifications.${index}.division`] = ['Required'];
+            if (!qual.percent_marks) newErrors[`qualifications.${index}.percent_marks`] = ['Required'];
+            if (!qual.board_code && qual.relevant_qualification !== 'Other') newErrors[`qualifications.${index}.board_code`] = ['Required'];
+        });
 
         if (Object.keys(newErrors).length > 0) {
             setErrors(newErrors);
+            Swal.fire({
+                icon: 'error',
+                title: 'Validation Error',
+                text: 'Please fill all required fields.',
+            });
             return;
         }
 
@@ -179,25 +214,35 @@ const QualificationDetailsFormPage: React.FC = () => {
         setErrors({});
         try {
             const payload = {
-                ...details,
-                year_of_passing: details.year_of_passing ? parseInt(details.year_of_passing, 10) : null,
-                percent_marks: details.percent_marks ? parseFloat(details.percent_marks) : null,
+                qualifications: state.qualifications.map(q => ({
+                    ...q,
+                    year_of_passing: parseInt(q.year_of_passing, 10),
+                    percent_marks: parseFloat(q.percent_marks),
+                })),
+                nad_username: state.nad_username,
+                nad_certificate_id: state.nad_certificate_id,
             };
+
             const response = await axios.post('/api/applicants/qualification-details', payload);
+            
             if (response.data?.success) {
-                const redirectTo: string =
-                    response.data.redirect_to || '/applicant/qualification/summary';
+                const redirectTo: string = response.data.redirect_to || '/applicant/qualification/summary';
                 navigate(redirectTo.replace(window.location.origin, ''));
+            } else {
+                 const message = response.data?.message || 'Failed to save details.';
+                 setErrors({ general: [message] });
+                 Swal.fire('Error', message, 'error');
             }
         } catch (err: any) {
             if (err.response?.status === 422) {
                 setErrors(err.response.data.errors || {});
+                Swal.fire('Validation Error', 'Please check the form for errors.', 'error');
             } else if (err.response?.status === 401) {
                 window.location.href = '/auth/login';
             } else {
-                setErrors({
-                    general: ['Failed to save qualification details. Please try again.'],
-                });
+                const msg = err.response?.data?.message || 'Failed to save details.';
+                setErrors({ general: [msg] });
+                Swal.fire('Error', msg, 'error');
             }
         } finally {
             setSubmitting(false);
@@ -211,6 +256,24 @@ const QualificationDetailsFormPage: React.FC = () => {
             </div>
         );
     }
+
+    const getAvailableQualifications = (currentIndex: number) => {
+        const allSelected = state.qualifications.map(q => q.relevant_qualification).filter(Boolean);
+        const currentSelected = state.qualifications[currentIndex].relevant_qualification;
+        
+        const options = [
+            { value: "10th", label: "10th" },
+            { value: "10+2 th", label: "10+2 th" },
+            { value: "Graduation", label: "Graduation" },
+            { value: "Master", label: "Master" },
+            { value: "Other", label: "Other" }
+        ];
+
+        return options.map(opt => ({
+            ...opt,
+            disabled: allSelected.includes(opt.value) && opt.value !== currentSelected
+        }));
+    };
 
     return (
         <div className="min-h-screen bg-[#f5f7fb] flex flex-col">
@@ -282,7 +345,7 @@ const QualificationDetailsFormPage: React.FC = () => {
                                 );
                             })}
                         </div>
-                        <div className="flex items-center justify-between md:justify-end gap-2 px-3 md:px-0">
+                         <div className="flex items-center justify-between md:justify-end gap-2 px-3 md:px-0">
                             <span className="text-[11px] md:text-xs">
                                 Admission Cycle <span className="font-semibold">July Session</span>
                             </span>
@@ -295,7 +358,7 @@ const QualificationDetailsFormPage: React.FC = () => {
                 </div>
             </header>
 
-            <main className="flex-1 w-full max-w-6xl mx-auto px-4 py-6">
+            <main className="flex-1 w-full max-w-7xl mx-auto px-4 py-6">
                 <div className="w-full space-y-4">
                     {errors.general && (
                         <div className="bg-[#fef2f2] border border-[#fecaca] text-[#b91c1c] rounded px-4 py-2 text-xs">
@@ -303,234 +366,198 @@ const QualificationDetailsFormPage: React.FC = () => {
                         </div>
                     )}
 
-                    <div className="bg-white border border-gray-200 rounded shadow-sm">
-                        <div className="px-4 py-3 border-b border-gray-200 bg-[#f9fafb] rounded-t">
+                    <div className="bg-white border border-gray-200 rounded shadow-sm overflow-hidden">
+                        <div className="px-4 py-3 border-b border-gray-200 bg-[#f9fafb] rounded-t flex justify-between items-center">
                             <h2 className="text-sm font-semibold text-[#111827]">
                                 Qualification Details
                             </h2>
+                            <button
+                                onClick={addRow}
+                                className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition"
+                            >
+                                + Add Qualification
+                            </button>
                         </div>
-                        <div className="p-4 space-y-4 text-xs md:text-sm">
-                            <div className="grid md:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block font-medium mb-1">
-                                        Relevant Qualification *
-                                    </label>
-                                    <select
-                                        className="w-full border border-gray-300 rounded px-3 py-2 bg-white"
-                                        value={details.relevant_qualification}
-                                        onChange={handleChange('relevant_qualification')}
-                                    >
-                                        <option value="">Select</option>
-                                        <option value="10th">10th</option>
-                                        <option value="10+2">10+2 or equivalent</option>
-                                        <option value="DIPLOMA">Diploma</option>
-                                        <option value="BACHELOR">Bachelor Degree</option>
-                                        <option value="MASTER">Master Degree</option>
-                                        <option value="OTHER">Other</option>
-                                    </select>
-                                    {errors.relevant_qualification && (
-                                        <p className="mt-1 text-xs text-red-600">
-                                            {errors.relevant_qualification[0]}
-                                        </p>
-                                    )}
-                                </div>
-                            </div>
-
-                            <div className="grid md:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block font-medium mb-1">
-                                        Select Main Subject
-                                    </label>
-                                    <div className="grid grid-cols-2 gap-2">
-                                        {[
-                                            'HINDI',
-                                            'MATHEMATICS',
-                                            'BIOLOGY',
-                                            'COMMERCE',
-                                            'ENGLISH',
-                                            'SCIENCE',
-                                            'ARTS',
-                                            'OTHER',
-                                        ].map((subject) => (
-                                            <label
-                                                key={subject}
-                                                className="inline-flex items-center space-x-2"
-                                            >
+                        
+                        <div className="p-4 overflow-x-auto">
+                            <table className="w-full text-left border-collapse min-w-[1000px]">
+                                <thead>
+                                    <tr className="bg-gray-50 text-xs text-gray-700 uppercase">
+                                        <th className="p-2 border">Qualification</th>
+                                        <th className="p-2 border">Main Subject</th>
+                                        <th className="p-2 border">Year</th>
+                                        <th className="p-2 border">Division</th>
+                                        <th className="p-2 border">% Marks</th>
+                                        <th className="p-2 border">Board/University</th>
+                                        <th className="p-2 border">Roll No</th>
+                                        <th className="p-2 border">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="text-xs md:text-sm">
+                                    {state.qualifications.map((row, index) => (
+                                        <tr key={index} className="hover:bg-gray-50">
+                                            <td className="p-2 border align-top">
+                                                <select
+                                                    className="w-full border border-gray-300 rounded px-2 py-1"
+                                                    value={row.relevant_qualification}
+                                                    onChange={(e) => handleRowChange(index, 'relevant_qualification', e.target.value)}
+                                                >
+                                                    <option value="">Select</option>
+                                                    {getAvailableQualifications(index).map(opt => (
+                                                        !opt.disabled && (
+                                                            <option key={opt.value} value={opt.value}>
+                                                                {opt.label}
+                                                            </option>
+                                                        )
+                                                    ))}
+                                                </select>
+                                                {errors[`qualifications.${index}.relevant_qualification`] && (
+                                                    <div className="text-red-600 text-[10px] mt-1">{errors[`qualifications.${index}.relevant_qualification`][0]}</div>
+                                                )}
+                                            </td>
+                                            <td className="p-2 border align-top">
                                                 <input
-                                                    type="checkbox"
-                                                    className="rounded border-gray-300"
-                                                    checked={mainSubjectsSelection.includes(subject)}
-                                                    onChange={() => toggleSubject(subject)}
+                                                    type="text"
+                                                    className="w-full border border-gray-300 rounded px-2 py-1"
+                                                    placeholder="Subjects"
+                                                    value={row.main_subjects}
+                                                    onChange={(e) => handleRowChange(index, 'main_subjects', e.target.value)}
                                                 />
-                                                <span className="uppercase">{subject}</span>
-                                            </label>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
+                                            </td>
+                                            <td className="p-2 border align-top">
+                                                <select
+                                                    className="w-full border border-gray-300 rounded px-2 py-1"
+                                                    value={row.year_of_passing}
+                                                    onChange={(e) => handleRowChange(index, 'year_of_passing', e.target.value)}
+                                                >
+                                                    <option value="">Select</option>
+                                                    {years.map(y => <option key={y} value={y}>{y}</option>)}
+                                                </select>
+                                                {errors[`qualifications.${index}.year_of_passing`] && (
+                                                    <div className="text-red-600 text-[10px] mt-1">{errors[`qualifications.${index}.year_of_passing`][0]}</div>
+                                                )}
+                                            </td>
+                                            <td className="p-2 border align-top">
+                                                <select
+                                                    className="w-full border border-gray-300 rounded px-2 py-1"
+                                                    value={row.division}
+                                                    onChange={(e) => handleRowChange(index, 'division', e.target.value)}
+                                                >
+                                                    <option value="">Select</option>
+                                                    <option value="First">First</option>
+                                                    <option value="Second">Second</option>
+                                                    <option value="Third">Third</option>
+                                                </select>
+                                                {errors[`qualifications.${index}.division`] && (
+                                                    <div className="text-red-600 text-[10px] mt-1">{errors[`qualifications.${index}.division`][0]}</div>
+                                                )}
+                                            </td>
+                                            <td className="p-2 border align-top">
+                                                <input
+                                                    type="number"
+                                                    className="w-20 border border-gray-300 rounded px-2 py-1"
+                                                    min="0" max="100" step="0.01"
+                                                    value={row.percent_marks}
+                                                    onChange={(e) => handleRowChange(index, 'percent_marks', e.target.value)}
+                                                />
+                                                {errors[`qualifications.${index}.percent_marks`] && (
+                                                    <div className="text-red-600 text-[10px] mt-1">{errors[`qualifications.${index}.percent_marks`][0]}</div>
+                                                )}
+                                            </td>
+                                            <td className="p-2 border align-top">
+                                                {row.relevant_qualification === 'Other' ? (
+                                                    <input
+                                                        type="text"
+                                                        className="w-full border border-gray-300 rounded px-2 py-1"
+                                                        placeholder="Board Name"
+                                                        value={row.board_code} // Using board_code field for free text if Other
+                                                        onChange={(e) => handleRowChange(index, 'board_code', e.target.value)}
+                                                    />
+                                                ) : (
+                                                    <select
+                                                        className="w-full border border-gray-300 rounded px-2 py-1 max-w-[200px]"
+                                                        value={row.board_code}
+                                                        onChange={(e) => handleRowChange(index, 'board_code', e.target.value)}
+                                                    >
+                                                        <option value="">Select Board</option>
+                                                        {rowBoards[index]?.map(b => (
+                                                            <option key={b.code} value={b.code}>{b.name}</option>
+                                                        ))}
+                                                    </select>
+                                                )}
+                                                 {errors[`qualifications.${index}.board_code`] && (
+                                                    <div className="text-red-600 text-[10px] mt-1">{errors[`qualifications.${index}.board_code`][0]}</div>
+                                                )}
+                                            </td>
+                                            <td className="p-2 border align-top">
+                                                <input
+                                                    type="text"
+                                                    className="w-full border border-gray-300 rounded px-2 py-1"
+                                                    value={row.board_roll_number}
+                                                    onChange={(e) => handleRowChange(index, 'board_roll_number', e.target.value)}
+                                                />
+                                            </td>
+                                            <td className="p-2 border align-top text-center">
+                                                {state.qualifications.length > 1 && (
+                                                    <button
+                                                        onClick={() => removeRow(index)}
+                                                        className="text-red-600 hover:text-red-800"
+                                                        title="Remove Row"
+                                                    >
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                        </svg>
+                                                    </button>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
 
-                            <div className="grid md:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block font-medium mb-1">
-                                        Year of Passing *
-                                    </label>
-                                    <select
-                                        className="w-full border border-gray-300 rounded px-3 py-2 bg-white"
-                                        value={details.year_of_passing}
-                                        onChange={handleChange('year_of_passing')}
-                                    >
-                                        <option value="">Select</option>
-                                        {years.map((year) => (
-                                            <option key={year} value={String(year)}>
-                                                {year}
-                                            </option>
-                                        ))}
-                                    </select>
-                                    {errors.year_of_passing && (
-                                        <p className="mt-1 text-xs text-red-600">
-                                            {errors.year_of_passing[0]}
-                                        </p>
-                                    )}
-                                </div>
-                                <div>
-                                    <label className="block font-medium mb-1">Division *</label>
-                                    <select
-                                        className="w-full border border-gray-300 rounded px-3 py-2 bg-white"
-                                        value={details.division}
-                                        onChange={handleChange('division')}
-                                    >
-                                        <option value="">Select</option>
-                                        <option value="FIRST">First</option>
-                                        <option value="SECOND">Second</option>
-                                        <option value="THIRD">Third</option>
-                                    </select>
-                                    {errors.division && (
-                                        <p className="mt-1 text-xs text-red-600">
-                                            {errors.division[0]}
-                                        </p>
-                                    )}
-                                </div>
+                    <div className="bg-white border border-gray-200 rounded shadow-sm p-4">
+                        <h3 className="text-sm font-semibold text-[#111827] mb-3">NAD Details</h3>
+                        <div className="grid md:grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-xs font-medium mb-1">NAD Username</label>
+                                <input
+                                    type="text"
+                                    className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                                    value={state.nad_username}
+                                    onChange={(e) => handleNadChange('nad_username', e.target.value)}
+                                />
                             </div>
-
-                            <div className="grid md:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block font-medium mb-1">
-                                        % of Marks *
-                                    </label>
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        max="100"
-                                        step="0.01"
-                                        className="w-full border border-gray-300 rounded px-3 py-2"
-                                        placeholder="Enter percentage of marks"
-                                        value={details.percent_marks}
-                                        onChange={handleChange('percent_marks')}
-                                    />
-                                    {errors.percent_marks && (
-                                        <p className="mt-1 text-xs text-red-600">
-                                            {errors.percent_marks[0]}
-                                        </p>
-                                    )}
-                                </div>
-                                <div>
-                                    <label className="block font-medium mb-1">Board Code *</label>
-                                    {boards.length > 0 ? (
-                                        <select
-                                            className="w-full border border-gray-300 rounded px-3 py-2 bg-white"
-                                            value={details.board_code}
-                                            onChange={handleChange('board_code')}
-                                        >
-                                            <option value="">Select Board</option>
-                                            {boards.map((board) => (
-                                                <option key={board.code} value={board.code}>
-                                                    {board.name} ({board.code})
-                                                </option>
-                                            ))}
-                                        </select>
-                                    ) : (
-                                        <input
-                                            type="text"
-                                            className="w-full border border-gray-300 rounded px-3 py-2"
-                                            placeholder="Enter board code"
-                                            value={details.board_code}
-                                            onChange={handleChange('board_code')}
-                                        />
-                                    )}
-                                    {errors.board_code && (
-                                        <p className="mt-1 text-xs text-red-600">
-                                            {errors.board_code[0]}
-                                        </p>
-                                    )}
-                                </div>
-                            </div>
-
-                            <div className="grid md:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block font-medium mb-1">
-                                        Board Roll Number / University Enrolment Number
-                                    </label>
-                                    <input
-                                        type="text"
-                                        className="w-full border border-gray-300 rounded px-3 py-2"
-                                        placeholder="Enter board roll / enrolment number"
-                                        value={details.board_roll_number}
-                                        onChange={handleChange('board_roll_number')}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block font-medium mb-1">
-                                        NAD user name (If applicable)
-                                    </label>
-                                    <input
-                                        type="text"
-                                        className="w-full border border-gray-300 rounded px-3 py-2"
-                                        placeholder="Enter NAD user name"
-                                        value={details.nad_username}
-                                        onChange={handleChange('nad_username')}
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="grid md:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block font-medium mb-1">
-                                        NAD Certificate ID (If applicable)
-                                    </label>
-                                    <input
-                                        type="text"
-                                        className="w-full border border-gray-300 rounded px-3 py-2"
-                                        placeholder="Enter NAD certificate ID"
-                                        value={details.nad_certificate_id}
-                                        onChange={handleChange('nad_certificate_id')}
-                                    />
-                                </div>
+                            <div>
+                                <label className="block text-xs font-medium mb-1">NAD Certificate ID</label>
+                                <input
+                                    type="text"
+                                    className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                                    value={state.nad_certificate_id}
+                                    onChange={(e) => handleNadChange('nad_certificate_id', e.target.value)}
+                                />
                             </div>
                         </div>
                     </div>
 
-                    <div className="flex justify-center">
-                        <button
-                            className="px-10 py-2 bg-[#0066b3] hover:bg-[#004f8a] text-white text-sm font-semibold rounded shadow-sm disabled:opacity-60"
-                            disabled={submitting}
-                            onClick={handleSubmit}
+                    <div className="flex justify-between pt-4">
+                        <Link
+                            to="/applicant/programme"
+                            className="px-6 py-2 border border-gray-300 rounded text-gray-700 bg-white hover:bg-gray-50 transition text-sm font-medium"
                         >
-                            {submitting ? 'Submitting...' : 'Submit'}
+                            Back
+                        </Link>
+                        <button
+                            onClick={handleSubmit}
+                            disabled={submitting}
+                            className="px-6 py-2 bg-[#6b006b] text-white rounded hover:bg-[#5c005c] transition text-sm font-medium disabled:opacity-50"
+                        >
+                            {submitting ? 'Saving...' : 'Save & Next'}
                         </button>
                     </div>
                 </div>
             </main>
-
-            <footer className="bg-[#1f2937] text-gray-300 text-xs mt-4">
-                <div className="max-w-6xl mx-auto px-4 py-3 flex flex-col md:flex-row md:items-center md:justify-between space-y-2 md:space-y-0">
-                    <div>
-                        <span className="font-semibold">Nursing College ERP</span> &nbsp;|&nbsp; Online Admission Portal
-                    </div>
-                    <div className="text-gray-400">
-                        © {currentYear} Nursing College. All Rights Reserved.
-                    </div>
-                </div>
-            </footer>
         </div>
     );
 };
