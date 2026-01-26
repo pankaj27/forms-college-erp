@@ -315,6 +315,20 @@ class ApplicantPaymentController extends Controller
         ]);
     }
 
+    public function history()
+    {
+        $user = Auth::guard('applicant')->user();
+        
+        $transactions = FinalRegistration::where('applicant_id', $user->id)
+            ->orderBy('created_at', 'desc')
+            ->get();
+            
+        return response()->json([
+            'success' => true,
+            'transactions' => $transactions
+        ]);
+    }
+
     private function getGatewayConfig($gatewayName)
     {
         $setting = PaymentGatewaySetting::where('gateway', $gatewayName)->where('is_active', true)->first();

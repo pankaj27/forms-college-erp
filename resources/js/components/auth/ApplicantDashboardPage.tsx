@@ -138,18 +138,18 @@ const ApplicantDashboardPage: React.FC = () => {
                 <div className="bg-[#4b004b]">
                     <div className="w-full px-4 md:px-8 py-2 flex flex-wrap items-center justify-between text-xs md:text-sm text-purple-100 gap-2">
                         <div className="flex flex-wrap gap-3">
-                            <Link to="/" className="hover:underline">
+                            <Link to="/applicant/dashboard" className="hover:underline">
                                 Home
                             </Link>
-                            <button className="hover:underline">
+                            <Link to="/applicant/preview" className="hover:underline">
                                 My Applications
-                            </button>
-                            <button className="hover:underline">
+                            </Link>
+                            <Link to="/applicant/transactions" className="hover:underline">
                                 My Transactions
-                            </button>
-                            <button className="hover:underline">
+                            </Link>
+                            <Link to="/applicant/discrepancies" className="hover:underline">
                                 Admission Discrepancy
-                            </button>
+                            </Link>
                         </div>
                         <span>
                             Session {currentYear}-{currentYear + 1}

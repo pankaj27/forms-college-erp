@@ -22,6 +22,8 @@ import UploadsPage from './applicant/UploadsPage';
 import UploadsSummaryPage from './applicant/UploadsSummaryPage';
 import PreviewPage from './applicant/PreviewPage';
 import FeePage from './applicant/FeePage';
+import MyTransactionsPage from './applicant/MyTransactionsPage';
+import AdmissionDiscrepancyPage from './applicant/AdmissionDiscrepancyPage';
 
 const Home: React.FC = () => {
     const currentYear = new Date().getFullYear();
@@ -326,6 +328,8 @@ export default function App() {
                 <Route path="/applicant/uploads/summary" element={<UploadsSummaryPage />} />
                 <Route path="/applicant/preview" element={<PreviewPage />} />
                 <Route path="/applicant/fee" element={<FeePage />} />
+                <Route path="/applicant/transactions" element={<MyTransactionsPage />} />
+                <Route path="/applicant/discrepancies" element={<AdmissionDiscrepancyPage />} />
                 <Route path="/forms/:shortCode" element={<DynamicForm />} />
                 <Route path="*" element={<NotFound />} />
             </Routes>

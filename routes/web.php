@@ -140,6 +140,7 @@ Route::prefix('api/applicants')->group(function () {
         Route::post('/payment/create-order', [ApplicantPaymentController::class, 'createCashfreeOrder']);
         Route::post('/payment/verify', [ApplicantPaymentController::class, 'verifyCashfreeOrder']);
         Route::get('/payment/gateways', [ApplicantPaymentController::class, 'getActiveGateways']);
+        Route::get('/payment/transactions', [ApplicantPaymentController::class, 'history']);
     });
 });
 
