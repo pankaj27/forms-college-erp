@@ -140,6 +140,8 @@ Route::prefix('api/applicants')->group(function () {
         Route::post('/uploads', [ApplicantUploadsController::class, 'store']);
         Route::delete('/uploads/{document_type}', [ApplicantUploadsController::class, 'destroy']);
         Route::get('/branches', [ApplicantProgrammeDetailsController::class, 'branches']);
+        Route::get('/programme-types', [ApplicantProgrammeDetailsController::class, 'getProgrammeTypes']);
+        Route::get('/programmes', [ApplicantProgrammeDetailsController::class, 'getProgrammes']);
         Route::post('/submit', [ApplicantSubmissionController::class, 'submit']);
         
         // Payment Routes

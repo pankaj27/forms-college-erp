@@ -104,4 +104,74 @@ class ApplicantProgrammeDetailsController extends Controller
             'data' => $branches,
         ]);
     }
+
+    public function getProgrammeTypes(Request $request)
+    {
+        $user = Auth::guard('applicant')->user();
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Authentication required.',
+            ], 401);
+        }
+
+        $types = DB::table('programe_types')
+            ->where('is_active', true)
+            ->select('id', 'programe_type_name as name', 'programe_type_code as code')
+            ->orderBy('programe_type_name')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $types,
+        ]);
+    }
+
+    public function getProgrammes(Request $request)
+    {
+        $user = Auth::guard('applicant')->user();
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Authentication required.',
+            ], 401);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'programme_type_code' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        // Find the programme type ID from the code
+        $programmeType = DB::table('programe_types')
+            ->where('programe_type_code', $request->programme_type_code)
+            ->first();
+
+        if (!$programmeType) {
+            return response()->json([
+                'success' => true,
+                'data' => [],
+            ]);
+        }
+
+        $programmes = DB::table('programes')
+            ->where('programe_type_id', $programmeType->id)
+            ->where('is_active', true)
+            ->select('id', 'programe_name as name', 'programe_code as code')
+            ->orderBy('programe_name')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $programmes,
+        ]);
+    }
 }

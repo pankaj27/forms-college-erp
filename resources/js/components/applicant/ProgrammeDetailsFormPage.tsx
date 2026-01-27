@@ -8,6 +8,18 @@ interface BranchOption {
     code: string;
 }
 
+interface ProgrammeTypeOption {
+    id: number;
+    name: string;
+    code: string;
+}
+
+interface ProgrammeOption {
+    id: number;
+    name: string;
+    code: string;
+}
+
 interface ProgrammeDetails {
     programme_type: string;
     mode_of_study: string;
@@ -33,6 +45,8 @@ const ProgrammeDetailsFormPage: React.FC = () => {
     const [submitting, setSubmitting] = useState(false);
     const [errors, setErrors] = useState<Record<string, string[]>>({});
     const [branches, setBranches] = useState<BranchOption[]>([]);
+    const [programmeTypes, setProgrammeTypes] = useState<ProgrammeTypeOption[]>([]);
+    const [programmes, setProgrammes] = useState<ProgrammeOption[]>([]);
     const [userProgress, setUserProgress] = useState<any>(null);
     const navigate = useNavigate();
 
@@ -97,9 +111,46 @@ const ProgrammeDetailsFormPage: React.FC = () => {
             }
         };
 
+        const fetchProgrammeTypes = async () => {
+            try {
+                const response = await axios.get('/api/applicants/programme-types');
+
+                if (response.data?.success && Array.isArray(response.data.data)) {
+                    setProgrammeTypes(response.data.data as ProgrammeTypeOption[]);
+                }
+            } catch (err: any) {
+                console.error('Failed to fetch programme types', err);
+            }
+        };
+
         fetchDetails();
         fetchBranches();
+        fetchProgrammeTypes();
     }, []);
+
+    // Fetch programmes when programme_type changes
+    useEffect(() => {
+        const fetchProgrammes = async () => {
+            if (!details.programme_type) {
+                setProgrammes([]);
+                return;
+            }
+
+            try {
+                const response = await axios.get('/api/applicants/programmes', {
+                    params: { programme_type_code: details.programme_type }
+                });
+
+                if (response.data?.success && Array.isArray(response.data.data)) {
+                    setProgrammes(response.data.data as ProgrammeOption[]);
+                }
+            } catch (err: any) {
+                console.error('Failed to fetch programmes', err);
+            }
+        };
+
+        fetchProgrammes();
+    }, [details.programme_type]);
 
     const handleChange =
         (field: keyof ProgrammeDetails) =>
@@ -294,9 +345,11 @@ const ProgrammeDetailsFormPage: React.FC = () => {
                                         onChange={handleChange('programme_type')}
                                     >
                                         <option value="">Select</option>
-                                        <option value="DIPLOMA">Diploma</option>
-                                        <option value="BACHELOR">Bachelor</option>
-                                        <option value="CERTIFICATE">Certificate</option>
+                                        {programmeTypes.map((type) => (
+                                            <option key={type.id} value={type.code}>
+                                                {type.name}
+                                            </option>
+                                        ))}
                                     </select>
                                     {errors.programme_type && (
                                         <p className="mt-1 text-xs text-red-600">{errors.programme_type[0]}</p>
@@ -330,15 +383,11 @@ const ProgrammeDetailsFormPage: React.FC = () => {
                                         disabled={!details.programme_type}
                                     >
                                         <option value="">Select</option>
-                                        {details.programme_type === 'DIPLOMA' && (
-                                            <option value="DIPLOMA IN NURSING">Diploma in nursing</option>
-                                        )}
-                                        {details.programme_type === 'BACHELOR' && (
-                                            <option value="BACHELOR OF NURSING">Bachelor of nursing</option>
-                                        )}
-                                        {details.programme_type === 'CERTIFICATE' && (
-                                            <option value="GNM NURSING">GNM nursing</option>
-                                        )}
+                                        {programmes.map((programme) => (
+                                            <option key={programme.id} value={programme.name}>
+                                                {programme.name}
+                                            </option>
+                                        ))}
                                     </select>
                                     {errors.programme_enrollment && (
                                         <p className="mt-1 text-xs text-red-600">{errors.programme_enrollment[0]}</p>
